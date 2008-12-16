@@ -1,5 +1,5 @@
-echo $http_proxy
-echo $https_proxy
+echo http_proxy: $http_proxy
+echo https_proxy: $https_proxy
 if [ -f google_appengine/dev_appserver.py ]
 then
 	python2.5 google_appengine/dev_appserver.py --debug code

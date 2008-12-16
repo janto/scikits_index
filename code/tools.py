@@ -36,6 +36,16 @@ logging.basicConfig(
 	)
 logger = logging.getLogger("")
 
+import rdfxml
+class Sink(object):
+	def __init__(self):
+		self.result = []
+	def triple(self, s, p, o):
+		self.result.append((s, p, o))
+def rdfToPython(s, base=None):
+	sink = Sink()
+	return rdfxml.parseRDF(s, base=None, sink=sink).result
+
 class GoogleXMLRPCTransport(object):
 	"""Handles an HTTP transaction to an XML-RPC server."""
 

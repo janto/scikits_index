@@ -1,9 +1,16 @@
-You will need to have the Google App Engine installed to do anything useful.
+You will need to have the Google App Engine (GAE) installed to do anything useful.
+
+Issues
+----------
 
 The first time you load the package listing things might be a bit slow while package info is retrieved.
 You might even experience the following errors depending on your internet speed:
     DownloadError: ApplicationError: 2 timed out
 If this keeps happening, check that your is http_proxy is set.
+
+GAE has issues with some proxy setups. Pretty much all of them IMNSHO. You can hack it by following these instructions:
+   http://code.google.com/p/googleappengine/issues/detail?id=544
+
 
 If you find a bug, let me know and I'l fix it.
 
