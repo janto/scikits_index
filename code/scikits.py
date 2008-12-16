@@ -495,9 +495,16 @@ class DebugPage(Page):
 	def get(self):
 		self.print_header()
 		self.print_menu()
+
+		#~ http://wiki.python.org/moin/PyPiXmlRpc
 		server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
+
 		result = server.package_releases('roundup')
 		self.write(result)
+
+		result = server.package_urls('roundup', '1.1.2')
+		self.write(result)
+
 		self.print_footer()
 
 application = webapp.WSGIApplication([
