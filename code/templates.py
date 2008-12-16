@@ -14,7 +14,7 @@ header_template = """
 
 <div style="background-color: white; text-align: left; padding: 10px 10px 15px 15px">
 <table></tr>
-<td><a href="/"><img src="/static/images/download_large.png" width="64" border="0" /></a>
+<td><a href="/"><img src="/static/images/scipyshiny_small.png" width="64" border="0" /></a>
 <td><a href="/"><span style="font-size: 36px;">SciKits</span></a></td>
 </tr></table>
 </div>
@@ -23,8 +23,9 @@ header_template = """
 	<h3>Navigation</h3>
 	<ul>
 	<li><a href="/">Home</a> |&nbsp;</li>
-	<li><a href="/about">What are SciKits?</a> |&nbsp;</li>
-	<li><a href="/scikits">Get SciKits</a></li>
+	<li><a href="/about">About SciKits</a> |&nbsp;</li>
+	<li><a href="/scikits">Get SciKits</a> |&nbsp;</li>
+	<li><a href="/contribute">Contribute</a></li>
 	</ul>
 </div>
 
@@ -94,6 +95,8 @@ They are separate from the scipy library because they are either too specialized
 	<span class="linkdescr">what scikits are all about</span></p>
 	<p class="biglink"><a class="biglink" href="/scikits">Get SciKits</a><br/>
 	<span class="linkdescr">index of all scikits</span></p>
+	<p class="biglink"><a class="biglink" href="/contribute">Contribute</a><br/>
+	<span class="linkdescr">add your own scikit or join a project</span></p>
 	</td>
 </tr>
 </table>
@@ -151,6 +154,21 @@ contact David
 <br />
 """
 
+contribute_page_template = """
+<h1>Contribute</h1>
+
+<h3>Add your own package</h3>
+<p>
+<!-- Register at PyPI or add to SVN repository -->
+</p>
+
+<h3>Join a project</h3>
+<p>
+Join a mailing list.
+</p>
+
+"""
+
 package_info_template = """
 <a href="" style="text-decoration:none"><h1>%(name)s</h1></a>
 <i>%(revision)s</i>
@@ -162,7 +180,7 @@ package_info_template = """
 <img src="/static/images/download_large.png" width="16" border="0" /> Download:  %(download_link)s <br />
 Homepage: <a href="%(homepage)s">%(homepage)s</a> <br />
 PyPI: <a href="http://pypi.python.org/pypi/%(name)s">http://pypi.python.org/pypi/%(name)s</a> <br />
-Source: <a href="%(repo_url)s">%(repo_url)s</a> <br />
+Source Repository: <a href="%(repo_url)s">%(repo_url)s</a> <br />
 People: %(people)s <br />
 </p>
 

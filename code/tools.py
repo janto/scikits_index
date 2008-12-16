@@ -15,14 +15,13 @@ from google.appengine.api import users
 
 import xmlrpclib
 
-#~ import xml.etree.ElementTree as ET
-
 # set up locations
 ROOT = os.path.dirname(__file__)
-
 ON_DEV_SERVER = os.environ.get("SERVER_SOFTWARE", "dev").lower().startswith("dev")
-
 REPO_PATH = "http://svn.scipy.org/svn/scikits/trunk"
+
+# how often new data needs to be loaded
+FETCH_CACHE_AGE = 60 * 60 * 2
 
 import time
 
@@ -45,6 +44,16 @@ class Sink(object):
 def rdfToPython(s, base=None):
 	sink = Sink()
 	return rdfxml.parseRDF(s, base=None, sink=sink).result
+
+def get_url(url, force_fetch=False):
+	result = memcache.get(url)
+	if result is None or force_fetch:
+		logger.debug("fetching %s" % url)
+		result = urlfetch.fetch(url)
+		assert memcache.set(key=url, value=result, time=FETCH_CACHE_AGE), url
+	else:
+		logger.debug("cache hit for %s" % url)
+	return result
 
 class GoogleXMLRPCTransport(object):
 	"""Handles an HTTP transaction to an XML-RPC server."""
@@ -78,16 +87,18 @@ class GoogleXMLRPCTransport(object):
 		result = None
 		url = 'http://%s%s' % (host, handler)
 		try:
-			response = urlfetch.fetch(url,
+			response = urlfetch.fetch(
+				url,
 				payload=request_body,
 				method=urlfetch.POST,
-				headers={'Content-Type': 'text/xml'})
+				headers={'Content-Type': 'text/xml'},
+				)
 		except:
 			msg = 'Failed to fetch %s' % url
-			raise xmlrpclib.ProtocolError(host + handler, 500, msg, {})
+			raise
 
 		if response.status_code != 200:
-			logging.error('%s returned status code %s' % (url, response.status_code))
+			logger.error('%s returned status code %s' % (url, response.status_code))
 			raise xmlrpclib.ProtocolError(host + handler,
 				  response.status_code,
 				  "",

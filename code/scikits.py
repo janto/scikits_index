@@ -22,16 +22,6 @@ logger-level rule-of-thumbs
 
 """
 
-def get_url(url, force_fetch=False):
-	result = memcache.get(url)
-	if result is None or force_fetch:
-		logger.debug("fetching %s" % url)
-		result = urlfetch.fetch(url)
-		assert memcache.set(key=url, value=result, time=60*60*5), url
-	else:
-		logger.debug("cache hit for %s" % url)
-	return result
-
 class Page(webapp.RequestHandler):
 
 	name = ""
@@ -40,25 +30,6 @@ class Page(webapp.RequestHandler):
 		self.init_time = time.time()
 		webapp.RequestHandler.__init__(self)
 		self.logger = logging.getLogger(self.name)
-
-		# load from templates.py
-		for t in [
-			"header_template",
-			"footer_template",
-			"main_page_template",
-			"about_template",
-			"package_info_template",
-		]:
-			template_name = t.rsplit("_", 1)[0]
-			text = getattr(templates, t)
-
-			template = PageTemplate.all().filter("name =", template_name).get()
-			if template:
-				pass
-			else:
-				self.logger.info("loading %s from templates.py into datastore" % template_name)
-				template = PageTemplate(name=template_name, text=text, modified=datetime.datetime.now())
-				template.put()
 
 	def write(self, text):
 		self.response.out.write(text)
@@ -101,6 +72,17 @@ class MainPage(Page):
 		self.write(get_template("main_page")% locals())
 		self.print_footer()
 
+class ContributePage(Page):
+
+	name = "contribute"
+
+	def get(self):
+		self.print_header()
+		self.print_menu()
+		self.write(get_template("contribute_page") % locals())
+		self.print_footer()
+
+
 class PackagesPage(Page):
 
 	name = "scikits"
@@ -109,7 +91,7 @@ class PackagesPage(Page):
 		self.print_header()
 		self.print_menu()
 
-		packages = sorted(System.packages().values())
+		packages = sorted(Package.packages().values())
 
 		# force fetch of some package
 		if packages:
@@ -145,10 +127,10 @@ class PackageInfoPage(Page):
 			package_name = args[0]
 
 		# done before printing header to build title
-		package = System.packages().get(package_name)
+		package = Package.packages().get(package_name)
 		if package is None:
 			package_name = "scikits.%s" % package_name
-			package = System.packages().get(package_name)
+			package = Package.packages().get(package_name)
 		if package is None:
 			self.error(404)
 			self.write("404 not found")
@@ -185,26 +167,79 @@ def table_of_packages(packages):
 	return "\n".join(result)
 
 class Package(object):
-	def __init__(self, repo_url):
+	def __init__(self, name, repo_url):
 		"""
 		init should cache minimal information. actual information extraction should be done on page requests. with memcaching where needed.
 		"""
+		self.name = name
 		self.repo_url = repo_url
 
-		self.name = "scikits.%s" % os.path.split(self.repo_url)[1]
+	@classmethod
+	def packages(self):
+		packages = memcache.get("packages")
+		if packages is None:
+			packages = {}
 
-		self.readme_filename = os.path.join(self.repo_url, "README")
+			from_repo = 1
+			if from_repo:
+				logger.info("loading packages from repo")
+				for repo_url in fetch_dir_links(REPO_PATH):
+					package_name = "scikits.%s" % os.path.split(repo_url)[1]
 
-		url = os.path.join(self.repo_url, "setup.py")
-		result = get_url(url)
-		if result.status_code != 200:
-			self.valid = False
-			return
+					# check if really a package
+					url = os.path.join(repo_url, "setup.py")
+					result = get_url(url)
+					if result.status_code != 200: # setup.py was not found
+						continue
 
-		self.valid = True
+					package = Package(name=package_name, repo_url=repo_url)
+					packages[package.name] = package
+
+			from_pypi_search = 0
+			if from_pypi_search:
+				logger.info("loading packages from PyPI")
+				server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
+				results = server.search(dict(name="scikits"))
+				for package_name in set(result["name"] for result in results): # unique names, pypi contains duplicate names
+
+					#XXX remove this once no longer scanning repo for package name
+					if package_name in packages:
+						continue
+
+					repo_url = ""
+					package = Package(name=package_name, repo_url=repo_url)
+					packages[package.name] = package
+
+			assert memcache.set(key="packages", value=packages, time=FETCH_CACHE_AGE), package
+
+		return packages
 
 	def __cmp__(self, other):
 		return cmp(self.name, other.name)
+
+	def download_links_html(self):
+		text = []
+		server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
+		versions = server.package_releases(self.name)
+		for version in versions:
+			text.append("<table>")
+			text.append("""<tr>
+				<th>Python version</th>
+				<th>URL</th>
+				<th>Size</th>
+				</tr>""")
+			for d in server.release_urls(self.name, version):
+				text.append("<tr>")
+				text.append("""
+				<td>%(python_version)s</td>
+				<td><a href="%(url)s">%(filename)s</a></td>
+				<td>%(size)s</td>
+				"""% d)
+				text.append("</tr>")
+			text.append("</table>")
+
+			break # only the first listed version?
+		return "\n".join(text)
 
 	def info(self, force_fetch=False):
 		d = dict(
@@ -219,7 +254,6 @@ class Package(object):
 		if doap_result.status_code == 200:
 
 			doap_text = doap_result.content
-			#~ http://wiki.python.org/moin/PyPIXmlRpc?highlight=(CategoryDocumentation)
 			try:
 				tuples = rdfToPython(doap_text)
 			except:
@@ -288,48 +322,6 @@ def fetch_dir_links(url):
 	items = re.findall('<a href="(.+?)/">.+?</a>', result.content)
 	return [os.path.join(url, item) for item in items if not item.startswith("http://") and not item.startswith("..")]
 
-class System:
-
-	@classmethod
-	def init(self):
-		pass
-
-	@classmethod
-	def packages(self):
-		packages = memcache.get("packages")
-		if packages is None:
-			packages = {}
-			for url in fetch_dir_links(REPO_PATH):
-				logger.debug(url)
-				package = Package(repo_url=url)
-				if package.valid: # setup.py was not found
-					packages[package.name] = package
-		return packages
-
-#~ class RecentChangesPage(Page):
-	#~ def get(self):
-		#~ rss = RSS2.RSS2(
-			#~ title = "",
-			#~ link = "",
-			#~ description = "",
-
-			#~ lastBuildDate = datetime.datetime.now(),
-
-			#~ items = [
-
-				#~ RSS2.RSSItem(
-					#~ title = "PyRSS2Gen-0.0 released",
-					#~ link = "http://www.dalkescientific.com/news/030906-PyRSS2Gen.html",
-					#~ description = "Dalke Scientific today announced PyRSS2Gen-0.0, a library for generating RSS feeds for Python.  ",
-					#~ guid = RSS2.Guid("http://www.dalkescientific.com/news/"
-					#~ "030906-PyRSS2Gen.html"),
-					#~ pubDate = datetime.datetime(2003, 9, 6, 21, 31)
-					#~ ),
-
-			#~ ])
-
-		#~ rss.write_xml(self)
-
 class SearchPage(Page):
 	name="search"
 
@@ -357,7 +349,7 @@ class SearchPage(Page):
 		self.write("</p>")
 
 		packages = []
-		for package in System.packages().values():
+		for package in Package.packages().values():
 			d = package.info()
 			if any(text in field for field in package.info().values()):
 				packages.append(package)
@@ -373,9 +365,10 @@ class SearchPage(Page):
 		self.print_footer()
 
 def get_template(name):
-	#~ return getattr(templates, name+"_template")
 	template = PageTemplate.all().filter("name =", name).get()
-	return template.text
+	if template is not None:
+		return template.text
+	return getattr(templates, name+"_template")
 
 class PageTemplate(db.Model):
 	name = db.StringProperty(required=True)
@@ -408,6 +401,8 @@ class AdminPage(Page):
 		self.print_header()
 		self.print_menu()
 
+		# authorize
+
 		user = users.get_current_user()
 		self.write("<p>")
 		if not user:
@@ -423,6 +418,8 @@ class AdminPage(Page):
 		self.write("welcome %s. " % user.nickname())
 		self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
 		self.write("</p>")
+
+		# backup and stats
 
 		self.write("<p>")
 		if self.request.get("email_backup") == "yes":
@@ -444,36 +441,54 @@ class AdminPage(Page):
 		</p>
 		""")
 
+		# save modifications
+
 		template_name = self.request.get("template_name")
-		template = PageTemplate.all().filter("name =", template_name).get()
-		saved = False
-		if template:
+		template_text = self.request.get("template_text", "").strip()
+		if template_name and template_text: # user provided new content
+			template = PageTemplate.all().filter("name =", template_name).get()
+			if not template:
+				template = PageTemplate(name=template_name)
+			template.text = template_text
+			template.modified = datetime.datetime.now()
+			template.username = user.nickname()
+			template.put()
+
 			self.write("<p>")
-			template_text = self.request.get("template_text")
-			if template_text.strip():
-				template.text = template_text
-				template.modified = datetime.datetime.now()
-				template.username = user.nickname()
-				template.put()
-				saved = True
-			if saved:
-				self.write("<strong>saved</strong><br />")
+			self.write("<strong>saved</strong><br />")
 			self.write("last_modified(<em>%s</em>) = %s" % (template.name, template.modified))
 			self.write("</p>")
 
-		query = PageTemplate.all()
-		for template in query.order("name"):
-			modified = template.modified
-			template_name = template.name
-			template_text = htmlquote(template.text)
+		# list templates
+
+		for template_name in [
+			"header",
+			"footer",
+			"main_page",
+			"about",
+			"contribute_page",
+			"package_info",
+		]:
+			# check if in db
+			template = PageTemplate.all().filter("name =", template_name).get()
+			if template:
+				template_text = htmlquote(template.text)
+				modified_time = template.modified
+				modified_username = template.username
+			else:
+				template_text = htmlquote(get_template(template_name))
+				modified_time = None
+				modified_username = None
+
 			self.write("""
 <h2>%(template_name)s</h2>
 <p>
 <form action="/admin" method="post">
 <textarea name="template_text" cols="80" rows="20">%(template_text)s</textarea>
 <input type="hidden" name="template_name" value="%(template_name)s">
+<br />
 <input type="submit" value="Save" />
-modified %(modified)s
+modified %(modified_time)s by %(modified_username)s
 </form>
 </p>
 			""" % locals())
@@ -499,11 +514,35 @@ class DebugPage(Page):
 		#~ http://wiki.python.org/moin/PyPiXmlRpc
 		server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
 
-		result = server.package_releases('roundup')
-		self.write(result)
+		self.write("scikits:<br />\n")
+		results = server.search(dict(name="scikits"))
+		package_names = sorted(set(result["name"] for result in results)) # unique names, pypi contains duplicate names
+		self.write(package_names)
+		self.write("<br />\n")
 
-		result = server.package_urls('roundup', '1.1.2')
-		self.write(result)
+		#~ for result in results:
+			#~ self.write(result)
+			#~ self.write("<br />\n")
+
+		package_name = 'scikits.ann'
+		versions = server.package_releases(package_name)
+		self.write(versions)
+		self.write("<br />\n")
+
+		for version in versions:
+			d = server.release_data(package_name, version)
+			self.write(d)
+			self.write("<br />\n")
+
+			for d in server.release_urls(package_name, version):
+				self.write(d)
+				self.write("<br />\n")
+
+			break # only latest
+
+		self.write("download:")
+		for p in Package.packages().values():
+			self.write(p.download_links_html())
 
 		self.print_footer()
 
@@ -514,6 +553,7 @@ application = webapp.WSGIApplication([
 	('/(scikits[.].+)', PackageInfoPage),
 
 	('/about', AboutPage),
+	('/contribute', ContributePage),
 
 	#~ ('/recent_changes', RecentChangesPage),
 	('/search', SearchPage),
@@ -524,7 +564,6 @@ application = webapp.WSGIApplication([
 	], debug=True)
 
 def main():
-	System.init()
 	wsgiref.handlers.CGIHandler().run(application)
 
 if __name__ == '__main__':
