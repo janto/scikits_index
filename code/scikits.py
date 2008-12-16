@@ -342,20 +342,31 @@ class SearchPage(Page):
 		"""
 		self.print_header()
 		self.print_menu()
-		text = self.request.get("text").strip()
+		query_text = self.request.get("text").strip()
 
 		self.write("<p>")
-		self.write(self.search_box(default=text))
+		self.write(self.search_box(default=query_text))
 		self.write("</p>")
 
-		packages = []
+		field_weight = dict(name=100, description=50)
+		weights_packages = []
 		for package in Package.packages().values():
-			d = package.info()
-			if any(text in field for field in package.info().values()):
-				packages.append(package)
-				continue
+			w = 0
+			for field, text in package.info().items():
+				n = query_text in text
+				w += field_weight.get(field, 1) * n
+			if 0 < w:
+				weights_packages.append((-w, package))
+		weights_packages.sort() # highest scoring first
+		if weights_packages:
+			weights, packages = zip(*weights_packages)
+			self.write("\n<!-- ")
+			self.write(weights)
+			self.write(" -->\n")
+		else:
+			packages = []
 
-		self.write("<p>search results for <strong>%s</strong>:<br />" % (htmlquote(text) or "all"))
+		self.write("<p>search results for <strong>%s</strong>:<br />" % (htmlquote(query_text) or "all"))
 		if packages:
 			self.write(table_of_packages(packages))
 		else:
