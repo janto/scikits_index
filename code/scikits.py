@@ -99,8 +99,8 @@ class PackagesPage(Page):
 			n = memcache.get(key)
 			if n is None:
 				n = 0
-			memcache.set(key, (n+1) % len(packages))
-			n %= len(packages) # in case a kit is removed from repo
+			memcache.set(key, (n+1) % len(packages)) # set the next package to be fetched
+			n %= len(packages) # in case a kit is removed
 			package = packages[n]
 			self.logger.info("forcing fetch of package: %s" % package.name)
 			package.info(force_fetch=True)
@@ -206,7 +206,7 @@ class Package(object):
 					if package_name in packages:
 						continue
 
-					repo_url = ""
+					repo_url = "" #XXX where can we get this?
 					package = Package(name=package_name, repo_url=repo_url)
 					packages[package.name] = package
 
@@ -368,7 +368,7 @@ def get_template(name):
 	template = PageTemplate.all().filter("name =", name).get()
 	if template is not None:
 		return template.text
-	return getattr(templates, name+"_template")
+	return getattr(templates, name+"_template").strip()
 
 class PageTemplate(db.Model):
 	name = db.StringProperty(required=True)
@@ -406,16 +406,16 @@ class AdminPage(Page):
 		user = users.get_current_user()
 		self.write("<p>")
 		if not user:
-			self.write('only site admins allowed here.')
+			self.write('only site admins allowed here.\n')
 			self.write('<a href="%s">sign in</a>' % users.create_login_url("/admin"))
 			self.print_footer()
 			return
 		if not users.is_current_user_admin():
-			self.write('only site admin allowed here.')
+			self.write('only site admin allowed here.\n')
 			self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
 			self.print_footer()
 			return
-		self.write("welcome %s. " % user.nickname())
+		self.write("welcome %s.\n" % user.nickname())
 		self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
 		self.write("</p>")
 
@@ -428,9 +428,9 @@ class AdminPage(Page):
 			if address:
 				mail.send_mail(sender="jantod@gmail.com",
 					to=address,
-					subject="backup %s" % t,
-					body="""Here's the backup""",
-					attachments=[("templates.py.rss", collect_templates())] #XXX google keeps escaping the <> chars! arg!
+					subject="scikits index backup %s" % t,
+					body="""Here's the backup. GAE escaped the html tag chars. Sorry.""",
+					attachments=[("templates.py", collect_templates())] #XXX GAE keeps escaping the <> chars! arg!
 				)
 				self.write("sent backup to %s at %s" % (address, t))
 		self.write("""
@@ -473,12 +473,12 @@ class AdminPage(Page):
 			template = PageTemplate.all().filter("name =", template_name).get()
 			if template:
 				template_text = htmlquote(template.text)
-				modified_time = template.modified
-				modified_username = template.username
+				modified_time = "modified %s," % template.modified
+				modified_username = "by %s" % template.username
 			else:
 				template_text = htmlquote(get_template(template_name))
-				modified_time = None
-				modified_username = None
+				modified_time = "never modified,"
+				modified_username = "loading from <i>template.py</i>"
 
 			self.write("""
 <h2>%(template_name)s</h2>
@@ -488,7 +488,7 @@ class AdminPage(Page):
 <input type="hidden" name="template_name" value="%(template_name)s">
 <br />
 <input type="submit" value="Save" />
-modified %(modified_time)s by %(modified_username)s
+%(modified_time)s %(modified_username)s
 </form>
 </p>
 			""" % locals())

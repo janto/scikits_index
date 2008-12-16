@@ -48,8 +48,6 @@ header_template = """
 
 footer_template = """
 
-</script>
-
 </div> <!-- section -->
 </div> <!-- body -->
 </div> <!-- bodywrapper -->

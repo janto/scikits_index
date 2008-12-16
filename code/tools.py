@@ -45,15 +45,55 @@ def rdfToPython(s, base=None):
 	sink = Sink()
 	return rdfxml.parseRDF(s, base=None, sink=sink).result
 
+class Cache(object):
+
+	"""
+	memcache that only notifies when object expires.
+	"""
+
+	@classmethod
+	def get(self, key):
+		result = memcache.get(key)
+		if result is None:
+			return None, True
+		value, timeout = result
+		expired = False
+		if timeout is not None and timeout < time.time():
+			expired = True
+		return value, expired
+
+	@classmethod
+	def set(self, key, value, duration=None):
+		timeout = (time.time()+duration) if duration is not None else None
+		return memcache.set(key=key, value=(value, timeout))
+
+#~ def get_url(url, force_fetch=False):
+	#~ result = memcache.get(url)
+	#~ if result is None or force_fetch:
+		#~ logger.debug("fetching %s" % url)
+		#~ result = urlfetch.fetch(url)
+		#~ assert memcache.set(key=url, value=result, time=FETCH_CACHE_AGE), url
+	#~ else:
+		#~ logger.debug("cache hit for %s" % url)
+	#~ return result
+
 def get_url(url, force_fetch=False):
-	result = memcache.get(url)
-	if result is None or force_fetch:
+	response, expired = Cache.get(url)
+	if expired or force_fetch:
 		logger.debug("fetching %s" % url)
-		result = urlfetch.fetch(url)
-		assert memcache.set(key=url, value=result, time=FETCH_CACHE_AGE), url
+		try:
+			response = urlfetch.fetch(url)
+		except: # failed
+			if response is not None: # got a value in the past
+				logger.warn("returning old value for %s" % url)
+			else:
+				raise
+		else:
+			assert Cache.set(key=url, value=response, duration=FETCH_CACHE_AGE), url
 	else:
 		logger.debug("cache hit for %s" % url)
-	return result
+
+	return response
 
 class GoogleXMLRPCTransport(object):
 	"""Handles an HTTP transaction to an XML-RPC server."""

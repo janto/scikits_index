@@ -188,7 +188,6 @@ class URLFetchServiceStub(apiproxy_stub.APIProxyStub):
         try:
           socket.setdefaulttimeout(_API_CALL_DEADLINE)
           full_path = protocol + "://" + host + "/" + full_path
-          print full_path
           connection.request(method, full_path, payload, adjusted_headers)
           http_response = connection.getresponse()
           http_response_data = http_response.read()
