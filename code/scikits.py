@@ -353,7 +353,7 @@ class SearchPage(Page):
 		for package in Package.packages().values():
 			w = 0
 			for field, text in package.info().items():
-				n = query_text in text
+				n = query_text in text.lower()
 				w += field_weight.get(field, 1) * n
 			if 0 < w:
 				weights_packages.append((-w, package))
@@ -432,6 +432,7 @@ class AdminPage(Page):
 
 		# backup and stats
 
+		self.write("<h1>Page Templates</h1>")
 		self.write("<p>")
 		if self.request.get("email_backup") == "yes":
 			t = datetime.datetime.now()
@@ -441,7 +442,7 @@ class AdminPage(Page):
 					to=address,
 					subject="scikits index backup %s" % t,
 					body="""Here's the backup. GAE escaped the html tag chars. Sorry.""",
-					attachments=[("templates.py", collect_templates())] #XXX GAE keeps escaping the <> chars! arg!
+					attachments=[("templates.py.txt", collect_templates())] #XXX GAE keeps escaping the <> chars! arg!
 				)
 				self.write("sent backup to %s at %s" % (address, t))
 		self.write("""
@@ -503,6 +504,25 @@ class AdminPage(Page):
 </form>
 </p>
 			""" % locals())
+
+
+		self.write("<h1>other</h1>")
+
+
+		# memcache management
+		self.write("<h2>memcache</h2>")
+		if self.request.get("clear_memcache"):
+			memcache.flush_all()
+			self.write("<p><strong>flushed memcache</strong></p>")
+		self.write("""
+<p>
+%s
+<form action="/admin" method="post">
+<input type="hidden" name="clear_memcache" value="1">
+<input type="submit" value="Flush" />
+</form>
+</p>
+		""" % memcache.get_stats())
 
 		self.print_footer()
 
