@@ -184,9 +184,9 @@ People: %(people)s <br />
 
 <h3>Description</h3>
 <i>fetched from source</i>
-<p>
+<div style="background-color:#f0f0f0; padding:5px" class="rounded">
 %(escaped_description)s
-</p>
+</div>
 
 <h3>Installation</h3>
 
