@@ -37,6 +37,27 @@ class Page(webapp.RequestHandler):
 	def print_header(self):
 		title = self.name
 		search_box_html = SearchPage.search_box()
+
+		#~ # latest changes
+		#~ newest_packages_html = ""
+		#~ news_items = []
+		#~ for packages in Package.packages().values():
+			#~ version = package.latest_version()
+			#~ news_items.append((the_time, text))
+		#~ news_items.sort(reverse=True)
+		#~ if news_items:
+			#~ newest_packages_html = """
+
+			#~ """
+
+		# admin sidebar
+		admin_sidebar_html = ""
+		if users.is_current_user_admin():
+			admin_sidebar_html = """
+			<h3>Admin</h3>
+
+			"""
+
 		self.write(get_template("header") % locals())
 
 	def print_footer(self):
@@ -348,7 +369,7 @@ class SearchPage(Page):
 		self.write(self.search_box(default=query_text))
 		self.write("</p>")
 
-		field_weight = dict(name=100, description=50)
+		field_weight = dict(name=100, shortdesc=50, description=25)
 		weights_packages = []
 		for package in Package.packages().values():
 			w = 0
@@ -356,7 +377,7 @@ class SearchPage(Page):
 				n = query_text in text.lower()
 				w += field_weight.get(field, 1) * n
 			if 0 < w:
-				weights_packages.append((-w, package))
+				weights_packages.append((-w, package)) # negate value, so results with equal weight are alphabetical wrt names when sorted
 		weights_packages.sort() # highest scoring first
 		if weights_packages:
 			weights, packages = zip(*weights_packages)
@@ -441,7 +462,7 @@ class AdminPage(Page):
 				mail.send_mail(sender="jantod@gmail.com",
 					to=address,
 					subject="scikits index backup %s" % t,
-					body="""Here's the backup. GAE escaped the html tag chars. Sorry.""",
+					body="""Here's the backups. GAE escaped the html tag chars. Sorry.\nIf there isn't anything attached to this message then all pages were loaded from the template.py file.""",
 					attachments=[("templates.py.txt", collect_templates())] #XXX GAE keeps escaping the <> chars! arg!
 				)
 				self.write("sent backup to %s at %s" % (address, t))
@@ -506,8 +527,7 @@ class AdminPage(Page):
 			""" % locals())
 
 
-		self.write("<h1>other</h1>")
-
+		self.write("<h1>Other</h1>")
 
 		# memcache management
 		self.write("<h2>memcache</h2>")
@@ -523,6 +543,15 @@ class AdminPage(Page):
 </form>
 </p>
 		""" % memcache.get_stats())
+
+
+		self.write("""
+		<h2>Useful links</h2>
+		<a href="http://appengine.google.com/dashboard?&app_id=scikits">Google App Engine Dashboard</a> <br />
+		<a href="http://code.google.com/appengine/docs/">Google App Engine Docs</a> <br />
+		<a href="https://www.google.com/analytics/reporting/?reset=1&id=13320564">Google Analytics</a> <br />
+
+		""")
 
 		self.print_footer()
 

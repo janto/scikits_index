@@ -31,6 +31,9 @@ header_template = """
 
 <div class="sphinxsidebar">
 <div class="sphinxsidebarwrapper">
+
+	%(admin_sidebar_html)s
+
 	<h3>Quick search</h3>
 	%(search_box_html)s
 
@@ -57,6 +60,7 @@ footer_template = """
 <div class="clearer"></div>
 
 <div class="footer">
+See the <a href="http://code.google.com/p/scikits-index/source/checkout">source</a>.
 Created page in %(load_time)0.3f seconds. <a href="/admin">Admin</a>.
 <br />
 Designed by <a href="http://janto.blogspot.com/">Janto Dreijer</a>.
