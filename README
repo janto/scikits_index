@@ -1,10 +1,35 @@
 You will need to have the Google App Engine (GAE) installed to do anything useful.
 
+About the SciKits Index
+===============
+
+The goal is to introduce people to scikits packages that are relavant to them and get them to where they need to be fast.
+one page summary of all packages in repository, short descriptions, quick installs and links
+
+This websites acts as a simple layer on top of PyPI and the web interface to the subversion repository.
+Hosting of release files is done on PyPI. PyPI already has basic project management that can be leveraged.
+
+About the implementation
+===============
+
+More specifically it is a Google web app that intermittently scans http://svn.scipy.org/svn/scikits/trunk/ for new packages.
+Information about the packages is collected from PyPI (via DOAP info: name, description, homepage/wiki, download page, easy_install) and the repository (primarily its location and possibly README file content).
+
+Assuming a developer has code (based on example scikit) somewhere under http://svn.scipy.org/svn/scikits/trunk/ he should:
+* create a username at PyPI.
+* modify his setup.py
+* run "python setup.py register"
+
+When a developer wants to update his kit's information, he should update his setup.py and rerun "python setup.py register".
+
+When a developer wants to release a new version of his kit he either manually uploads it to PyPI or uses distutils (e.g. "python setup.py sdist bdist_wininst upload" [http://www.python.org/doc/2.5.2/dist/package-upload.html).
+
+
 Issues
-----------
+====
 
 The first time you load the package listing things might be a bit slow while package info is retrieved.
-You might even experience the following errors depending on your internet speed:
+You might even experience the following errors depending on your internet speed::
     DownloadError: ApplicationError: 2 timed out
 If this keeps happening, check that your is http_proxy is set.
 

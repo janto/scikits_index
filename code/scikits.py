@@ -15,7 +15,7 @@ logger-level rule-of-thumbs
 	info
 		something is unique to this request e.g. forcing bypass of cache
 	warn
-		e.g. connection to a remote server lost
+		e.g. connection to a remote server lost and reusing old data
 	error
 		unrecoverable
 		additional try-catch info
@@ -216,7 +216,7 @@ class Package(object):
 					package = Package(name=package_name, repo_url=repo_url)
 					packages[package.name] = package
 
-			from_pypi_search = 0
+			from_pypi_search = 1
 			if from_pypi_search:
 				logger.info("loading packages from PyPI")
 				server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())

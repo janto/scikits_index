@@ -83,28 +83,40 @@ $(document).ready( function(){
 # =======================================
 
 main_page_template = """
-<h1>SciKits</h1>
 <p>
-Scipy Toolkits are separately installable projects hosted under a common namespace.
-They are separate from the scipy library because they are either too specialized, have incompatible licensing terms or is meant for eventual inclusion.
+Welcome to SciKits!  Here you'll find a searchable index of
+add-on toolkits that complement <a href="http://www.scipy.org">SciPy</a>, a library of scientific computing routines.
+</p>
+
+<p>
+The SciKits cover a broad spectrum of application domains,
+including financial computation, audio processing, geosciences,
+computer vision, engineering, machine learning, medical computing
+and bioinformatics.  <a href="/about">Learn more...</a>
 </p>
 
 <p>
 
 <table class="contentstable" align="center" style="margin-left: 30px"><tr>
 	<td width="50%%">
-	<p class="biglink"><a class="biglink" href="/about">About SciKits</a><br/>
-	<span class="linkdescr">what scikits are all about</span></p>
-	<p class="biglink"><a class="biglink" href="/scikits">Get SciKits</a><br/>
-	<span class="linkdescr">index of all scikits</span></p>
-	<p class="biglink"><a class="biglink" href="/contribute">Contribute</a><br/>
-	<span class="linkdescr">add your own scikit or join a project</span></p>
+
+	<p class="biglink">
+	<img src="/static/images/download_large.png" width="32" style="float: left; padding-bottom: 20px; padding-right: 10px;"/>
+	<a class="biglink" href="/scikits">Download a SciKit</a><br/>
+	<span class="linkdescr">Index of all SciKits.</span>
+	</p>
+
+	<p class="biglink">
+	<img src="/static/images/organize.png" width="32" style="float: left; padding-bottom: 20px; padding-right: 10px;"/>
+	<a class="biglink" href="/contribute">Contribute</a><br/>
+	<span class="linkdescr">Add your own SciKit or join an existing project.</span>
+	</p>
+
 	</td>
 </tr>
 </table>
 
 </p>
-
 """
 
 about_template = """
@@ -120,46 +132,17 @@ Scipy Toolkits are independent and seperately installable projects hosted under 
 </ol>
 </p>
 
-<h3>About the package listing</h3>
-
-<p>The goal is to introduce people to scikits packages that are relavant to them and get them to where they need to be fast.
-one page summary of all packages in repository, short descriptions, quick installs and links</p>
-
-<p>This websites acts as a simple layer on top of PyPI and the web interface to the subversion repository.
-Hosting of release files is done on PyPI. PyPI already has basic project management that can be leveraged.</p>
-
-<h4>About the implementation</h4>
-
-<p>More specifically it is a Google web app that intermittently scans http://svn.scipy.org/svn/scikits/trunk/ for new packages.
-Information about the packages is collected from PyPI (via DOAP info: name, description, homepage/wiki, download page, easy_install) and the repository (primarily its location and possibly README file content).</p>
-
-<p>
-Assuming a developer has code (based on example scikit) somewhere under http://svn.scipy.org/svn/scikits/trunk/ he should:
-<ol>
-<li>create a username at PyPI.
-<li>modify his setup.py
-<li>run "python setup.py register"
-</ol>
-</p>
-
-<p>
-When a developer wants to update his kit's information, he should update his setup.py and rerun "python setup.py register".
-</p>
-
-<p>
-When a developer wants to release a new version of his kit he either manually uploads it to PyPI or uses distutils (e.g. "python setup.py sdist bdist_wininst upload" [http://www.python.org/doc/2.5.2/dist/package-upload.html).
-</p>
-
-<h4>registering a package under scikits namespace</h4>
-contact David
-
-<br />
 """
 
 contribute_page_template = """
 <h1>Contribute</h1>
 
 <h3>Add your own package</h3>
+
+<p>
+<a href="http://scipy.org/scipy/scikits/">SciKits developer resources</a>
+</p>
+
 <p>
 <!-- Register at PyPI or add to SVN repository -->
 </p>
@@ -168,7 +151,6 @@ contribute_page_template = """
 <p>
 Join a mailing list.
 </p>
-
 """
 
 package_info_template = """
