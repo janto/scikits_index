@@ -20,8 +20,14 @@ ROOT = os.path.dirname(__file__)
 ON_DEV_SERVER = os.environ.get("SERVER_SOFTWARE", "dev").lower().startswith("dev")
 REPO_PATH = "http://svn.scipy.org/svn/scikits/trunk"
 
+SECONDS_IN_MINUTE = 60
+SECONDS_IN_HOUR = SECONDS_IN_MINUTE * 60
+SECONDS_IN_DAY = SECONDS_IN_MINUTE * 24
+SECONDS_IN_WEEK = SECONDS_IN_DAY * 7
+SECONDS_IN_MONTH = SECONDS_IN_DAY * 28
+
 # how often new data needs to be loaded
-FETCH_CACHE_AGE = 60 * 60 * 2
+FETCH_CACHE_AGE = SECONDS_IN_HOUR * 2
 
 import time
 
@@ -48,7 +54,7 @@ def rdfToPython(s, base=None):
 class Cache(object):
 
 	"""
-	memcache that only notifies when object expires.
+	memcache that notifies if object expired but also still returns previous value
 	"""
 
 	@classmethod
@@ -66,16 +72,6 @@ class Cache(object):
 	def set(self, key, value, duration=None):
 		timeout = (time.time()+duration) if duration is not None else None
 		return memcache.set(key=key, value=(value, timeout))
-
-#~ def get_url(url, force_fetch=False):
-	#~ result = memcache.get(url)
-	#~ if result is None or force_fetch:
-		#~ logger.debug("fetching %s" % url)
-		#~ result = urlfetch.fetch(url)
-		#~ assert memcache.set(key=url, value=result, time=FETCH_CACHE_AGE), url
-	#~ else:
-		#~ logger.debug("cache hit for %s" % url)
-	#~ return result
 
 def get_url(url, force_fetch=False):
 	response, expired = Cache.get(url)

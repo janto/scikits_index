@@ -38,17 +38,38 @@ class Page(webapp.RequestHandler):
 		title = self.name
 		search_box_html = SearchPage.search_box()
 
-		#~ # latest changes
-		#~ newest_packages_html = ""
-		#~ news_items = []
-		#~ for packages in Package.packages().values():
-			#~ version = package.latest_version()
-			#~ news_items.append((the_time, text))
-		#~ news_items.sort(reverse=True)
-		#~ if news_items:
-			#~ newest_packages_html = """
+		# latest changes
 
-			#~ """
+		## query pypi for changelog
+		changes, expired = Cache.get("pypi_changelog")
+		if expired:
+			server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
+			new_changes = server.changelog(int(time.time() - SECONDS_IN_WEEK)) # changes made in last week
+			if new_changes:
+				Cache.set("pypi_changelog", value=new_changes, duration=SECONDS_IN_HOUR)
+			changes = new_changes
+		changes = changes if changes is not None else []
+
+		changes = [c for c in changes if "scikit" in c[0].lower()] # filter changes relevant to scikits
+
+		## convert to html
+		max_items = 5
+		newest_packages_html = []
+		if changes:
+			newest_packages_html.append("<h3>News</h3>")
+			items = 0
+			for (name, version), g in groupby(sorted(changes), key=lambda c: (c[0], c[1])):
+				newest_packages_html.append('<a href="http://pypi.python.org/pypi/%(name)s">%(name)s</a>' % locals())
+				#~ newest_packages_html.append("<ul>")
+				#~ for n, v, timestamp, action in g:
+					#~ newest_packages_html.append("<li>%(action)s</li>" % locals())
+					#~ items += 1
+				#~ newest_packages_html.append("</ul>")
+				newest_packages_html.append("<br />")
+				items += 1
+				if max_items <= items:
+					break
+		newest_packages_html = "\n".join(newest_packages_html)
 
 		# admin sidebar
 		admin_sidebar_html = ""
@@ -197,8 +218,8 @@ class Package(object):
 
 	@classmethod
 	def packages(self):
-		packages = memcache.get("packages")
-		if packages is None:
+		packages, expired = Cache.get("packages")
+		if expired or packages is None:
 			packages = {}
 
 			from_repo = 1
@@ -231,7 +252,7 @@ class Package(object):
 					package = Package(name=package_name, repo_url=repo_url)
 					packages[package.name] = package
 
-			assert memcache.set(key="packages", value=packages, time=FETCH_CACHE_AGE), package
+			assert Cache.set(key="packages", value=packages, duration=FETCH_CACHE_AGE), package
 
 		return packages
 

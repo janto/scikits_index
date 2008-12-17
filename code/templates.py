@@ -24,7 +24,7 @@ header_template = """
 	<ul>
 	<li><a href="/">Home</a> |&nbsp;</li>
 	<li><a href="/about">About SciKits</a> |&nbsp;</li>
-	<li><a href="/scikits">Get SciKits</a> |&nbsp;</li>
+	<li><a href="/scikits">Download a SciKit</a> |&nbsp;</li>
 	<li><a href="/contribute">Contribute</a></li>
 	</ul>
 </div>
@@ -33,6 +33,8 @@ header_template = """
 <div class="sphinxsidebarwrapper">
 
 	%(admin_sidebar_html)s
+
+	%(newest_packages_html)s
 
 	<h3>Quick search</h3>
 	%(search_box_html)s
