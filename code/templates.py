@@ -126,11 +126,11 @@ about_template = """
 <h1>About SciKits</h1>
 
 <p>
-Scipy Toolkits are independent and seperately installable projects hosted under a common namespace. Packages that are distributed in this way are here (instead of in monolithic scipy) for at least one of three general reasons. Each of these reasons use the same high-level namespace (scikits).
+SciPy Toolkits are independent and seperately installable projects hosted under a common namespace. Packages that are distributed in this way are here (instead of in monolithic SciPy) for at least one of three general reasons. Each of these reasons use the same high-level namespace (scikits).
 <ol>
-<li> The package is deemed too specialized to live in scipy itself, but is targeted at the same community.
-<li> The package has a GPL (or similar) license which is too restrictive to live in scipy itself.
-<li> The package is meant for eventual inclusion in the scipy namespace but is being developed as a separately installed package. It is generally the responsibility of the package writer to push for inclusion into SciPy if that is the desire. However, some packages may be moved into SciPy by other interested SciPy developers after approval by the SciPy steering committee.
+<li> The package is deemed too specialized to live in SciPy itself, but is targeted at the same community.
+<li> The package has a GPL (or similar) license which is too restrictive to live in SciPy itself.
+<li> The package is meant for eventual inclusion in the SciPy namespace but is being developed as a separately installed package. It is generally the responsibility of the package writer to push for inclusion into SciPy if that is the desire. However, some packages may be moved into SciPy by other interested SciPy developers after approval by the SciPy steering committee.
 </ol>
 </p>
 
@@ -142,7 +142,7 @@ contribute_page_template = """
 <h3>Add your own package</h3>
 
 <p>
-<a href="http://scipy.org/scipy/scikits/">SciKits developer resources</a>
+<a href="http://www.scipy.org/scipy/scikits/">SciKits developer resources</a>
 </p>
 
 <p>

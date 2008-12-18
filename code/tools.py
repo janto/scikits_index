@@ -133,6 +133,9 @@ class GoogleXMLRPCTransport(object):
 			msg = 'Failed to fetch %s' % url
 			raise
 
+		if response.content_was_truncated:
+			logger.warn("GAE truncated xmlrpc data")
+
 		if response.status_code != 200:
 			logger.error('%s returned status code %s' % (url, response.status_code))
 			raise xmlrpclib.ProtocolError(host + handler,

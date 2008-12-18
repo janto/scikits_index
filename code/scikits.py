@@ -39,45 +39,55 @@ class Page(webapp.RequestHandler):
 		search_box_html = SearchPage.search_box()
 
 		# latest changes
+		show_latest_changes = 0
+		newest_packages_html = ""
+		if show_latest_changes:
+			## query pypi for changelog
+			## each has form (name, version, timestamp, action)
+			changes, expired = Cache.get("pypi_changelog")
+			if expired or changes is None:
+				server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
+				try:
+					new_changes = server.changelog(int(time.time() - SECONDS_IN_WEEK * 2)) #XXX GAE truncates the result, so it's unlikely we'll get a lot of results
+				except:
+					self.logger.warn("using old value for changelog lookup")
+				else:
+					if new_changes:
+						changes = new_changes
+						changes.sort(key=lambda c: (c[2], c[0]), reverse=True) # newest first
+						self.logger.info("%d items in changelog" % len(changes))
+						Cache.set("pypi_changelog", value=changes, duration=SECONDS_IN_MINUTE*30)
+			changes = changes if changes is not None else []
 
-		## query pypi for changelog
-		changes, expired = Cache.get("pypi_changelog")
-		if expired:
-			server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
-			new_changes = server.changelog(int(time.time() - SECONDS_IN_WEEK)) # changes made in last week
-			if new_changes:
-				Cache.set("pypi_changelog", value=new_changes, duration=SECONDS_IN_HOUR)
-			changes = new_changes
-		changes = changes if changes is not None else []
+			#~ changes = [c for c in changes if "scikit" in c[0].lower()] # filter changes relevant to scikits
+			self.logger.debug("%d items in changelog relevant to scikits" % len(changes))
 
-		changes = [c for c in changes if "scikit" in c[0].lower()] # filter changes relevant to scikits
-
-		## convert to html
-		max_items = 5
-		newest_packages_html = []
-		if changes:
-			newest_packages_html.append("<h3>News</h3>")
-			items = 0
-			for (name, version), g in groupby(sorted(changes), key=lambda c: (c[0], c[1])):
-				newest_packages_html.append('<a href="http://pypi.python.org/pypi/%(name)s">%(name)s</a>' % locals())
-				#~ newest_packages_html.append("<ul>")
-				#~ for n, v, timestamp, action in g:
-					#~ newest_packages_html.append("<li>%(action)s</li>" % locals())
-					#~ items += 1
-				#~ newest_packages_html.append("</ul>")
-				newest_packages_html.append("<br />")
-				items += 1
-				if max_items <= items:
-					break
-		newest_packages_html = "\n".join(newest_packages_html)
+			## convert to html
+			max_items = 5
+			newest_packages_html = []
+			if changes:
+				items = 0
+				newest_packages_html.append("<h3>Recent Changes</h3>")
+				# group together actions on same name (if contiguous)
+				for (name, version), g in groupby(changes, key=lambda c: (c[0], c[1])):
+					g = list(g)
+					g.sort(key=lambda c: c[2]) # show actions in order of application
+					actions = ", ".join(c[-1] for c in g)
+					version = version[:10] if version is not None else ""
+					newest_packages_html.append('<a href="http://pypi.python.org/pypi/%(name)s" title="%(actions)s">%(name)s %(version)s</a>' % locals())
+					newest_packages_html.append("<br />")
+					items += 1
+					if max_items <= items:
+						break
+			newest_packages_html = "\n".join(newest_packages_html)
 
 		# admin sidebar
 		admin_sidebar_html = ""
 		if users.is_current_user_admin():
 			admin_sidebar_html = """
-			<h3>Admin</h3>
-
-			"""
+			<h3><a href="/admin">Admin</a></h3>
+			<a href="%s">sign out</a>
+			""" % users.create_logout_url("/admin")
 
 		self.write(get_template("header") % locals())
 
@@ -627,6 +637,10 @@ class DebugPage(Page):
 
 		self.print_footer()
 
+class RobotsPage(Page):
+	def get(self):
+		return
+
 application = webapp.WSGIApplication([
 	('/', MainPage),
 
@@ -640,6 +654,7 @@ application = webapp.WSGIApplication([
 	('/search', SearchPage),
 	('/admin', AdminPage),
 	('/debug', DebugPage),
+	('/robots.txt', RobotsPage),
 
 	('/(.+)', PackageInfoPage),
 	], debug=True)
