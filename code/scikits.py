@@ -39,47 +39,34 @@ class Page(webapp.RequestHandler):
 		search_box_html = SearchPage.search_box()
 
 		# latest changes
-		show_latest_changes = 0
+		show_latest_changes = 1
 		newest_packages_html = ""
 		if show_latest_changes:
-			## query pypi for changelog
-			## each has form (name, version, timestamp, action)
-			changes, expired = Cache.get("pypi_changelog")
-			if expired or changes is None:
-				server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
-				try:
-					new_changes = server.changelog(int(time.time() - SECONDS_IN_WEEK * 2)) #XXX GAE truncates the result, so it's unlikely we'll get a lot of results
-				except:
-					self.logger.warn("using old value for changelog lookup")
-				else:
-					if new_changes:
-						changes = new_changes
-						changes.sort(key=lambda c: (c[2], c[0]), reverse=True) # newest first
-						self.logger.info("%d items in changelog" % len(changes))
-						Cache.set("pypi_changelog", value=changes, duration=SECONDS_IN_MINUTE*30)
-			changes = changes if changes is not None else []
-
-			#~ changes = [c for c in changes if "scikit" in c[0].lower()] # filter changes relevant to scikits
-			self.logger.debug("%d items in changelog relevant to scikits" % len(changes))
-
-			## convert to html
-			max_items = 5
 			newest_packages_html = []
-			if changes:
-				items = 0
-				newest_packages_html.append("<h3>Recent Changes</h3>")
-				# group together actions on same name (if contiguous)
-				for (name, version), g in groupby(changes, key=lambda c: (c[0], c[1])):
-					g = list(g)
-					g.sort(key=lambda c: c[2]) # show actions in order of application
-					actions = ", ".join(c[-1] for c in g)
-					version = version[:10] if version is not None else ""
-					newest_packages_html.append('<a href="http://pypi.python.org/pypi/%(name)s" title="%(actions)s">%(name)s %(version)s</a>' % locals())
-					newest_packages_html.append("<br />")
-					items += 1
-					if max_items <= items:
-						break
-			newest_packages_html = "\n".join(newest_packages_html)
+
+			oldest = datetime.fromtimestamp(time.time() - SECONDS_IN_WEEK * 3)
+			news_items = []
+			for package in Package.packages().values():
+				first_char = package.name[0]
+				package_name = package.name
+
+				package_news_items = []
+				for dist in ["2.5", "2.6", "3.0", "any", "source"]: # check various distributions
+					url = "http://pypi.python.org/packages/%(dist)s/%(first_char)s/%(package_name)s/" % locals()
+					items = fetch_links_with_dates(url, FETCH_CACHE_AGE*random.uniform(0.5, 1.5))
+					if items is None:
+						continue
+					package_news_items.extend([(name, _url, t) for name, _url, t in items if oldest < t])
+				package_news_items.sort(key=lambda c: (c[-1], name))
+
+				if package_news_items:
+					actions = ", ".join(name for name, _url, t in package_news_items)
+
+					newest_packages_html.append('<a href="http://pypi.python.org/pypi/%(package_name)s" title="%(actions)s">%(package_name)s</a><br />\n' % locals())
+
+			newest_packages_html = "\n".join(sorted(newest_packages_html)[:5])
+			if newest_packages_html:
+				newest_packages_html = "<h3>Latest Releases</h3>\n%s" % newest_packages_html
 
 		# admin sidebar
 		admin_sidebar_html = ""
@@ -239,10 +226,10 @@ class Package(object):
 					package_name = "scikits.%s" % os.path.split(repo_url)[1]
 
 					# check if really a package
-					url = os.path.join(repo_url, "setup.py")
-					result = get_url(url)
-					if result.status_code != 200: # setup.py was not found
-						continue
+					#~ url = os.path.join(repo_url, "setup.py")
+					#~ result = get_url(url)
+					#~ if result.status_code != 200: # setup.py was not found
+						#~ continue
 
 					package = Package(name=package_name, repo_url=repo_url)
 					packages[package.name] = package
@@ -365,14 +352,6 @@ class Package(object):
 		revision = ("version " + revision) if revision else ""
 
 		return get_template("package_info") % dictadd(self.__dict__, d, locals())
-
-def fetch_dir_links(url):
-	result = get_url(url)
-	if result.status_code != 200:
-		return
-
-	items = re.findall('<a href="(.+?)/">.+?</a>', result.content)
-	return [os.path.join(url, item) for item in items if not item.startswith("http://") and not item.startswith("..")]
 
 class SearchPage(Page):
 	name="search"

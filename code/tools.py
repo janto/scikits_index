@@ -22,7 +22,7 @@ REPO_PATH = "http://svn.scipy.org/svn/scikits/trunk"
 
 SECONDS_IN_MINUTE = 60
 SECONDS_IN_HOUR = SECONDS_IN_MINUTE * 60
-SECONDS_IN_DAY = SECONDS_IN_MINUTE * 24
+SECONDS_IN_DAY = SECONDS_IN_HOUR * 24
 SECONDS_IN_WEEK = SECONDS_IN_DAY * 7
 SECONDS_IN_MONTH = SECONDS_IN_DAY * 28
 
@@ -30,6 +30,8 @@ SECONDS_IN_MONTH = SECONDS_IN_DAY * 28
 FETCH_CACHE_AGE = SECONDS_IN_HOUR * 2
 
 import time
+
+import random
 
 # set up logging system
 import logging
@@ -73,7 +75,9 @@ class Cache(object):
 		timeout = (time.time()+duration) if duration is not None else None
 		return memcache.set(key=key, value=(value, timeout))
 
-def get_url(url, force_fetch=False):
+def get_url(url, force_fetch=False, cache_duration=FETCH_CACHE_AGE):
+	if cache_duration is None:
+		cache_duration = FETCH_CACHE_AGE
 	response, expired = Cache.get(url)
 	if expired or force_fetch:
 		logger.debug("fetching %s" % url)
@@ -85,11 +89,59 @@ def get_url(url, force_fetch=False):
 			else:
 				raise
 		else:
-			assert Cache.set(key=url, value=response, duration=FETCH_CACHE_AGE), url
+			assert Cache.set(key=url, value=response, duration=cache_duration), url
 	else:
 		logger.debug("cache hit for %s" % url)
 
 	return response
+
+def fetch_dir_links(url, cache_duration=None):
+	result = get_url(url, cache_duration=cache_duration)
+	if result.status_code != 200:
+		return
+
+	items = re.findall('<a href="(.+?)/">.+?</a>', result.content)
+	return [os.path.join(url, item) for item in items if not item.startswith("http://") and not item.startswith("..")]
+
+from datetime import datetime
+from BeautifulSoup import BeautifulSoup
+
+def fetch_links_with_dates(url, cache_duration=None):
+	response = get_url(url, cache_duration=cache_duration)
+	if response.status_code != 200:
+		return
+	text = response.content
+	if "404 Not Found" in text:
+		return []
+
+	items = []
+	soup = BeautifulSoup(text)
+	for tr in soup.findAll("tr"):
+		link = tr.find("a")
+		if link is None:
+			continue
+		name = link.contents[0]
+		_url = link["href"]
+		if _url.startswith("?"):
+			continue
+		_url = os.path.join(url, _url)
+
+		# find date field
+		for td in tr.findAll("td"):
+			try:
+				t = datetime.strptime(str(td.contents[0]).strip(), "%d-%b-%Y %H:%M")
+				break
+			except ValueError:
+				continue
+		else:
+			continue # no date found
+
+		items.append((name, _url, t))
+
+	if not items:
+		logger.warn("no items for %s" % url)
+
+	return items
 
 class GoogleXMLRPCTransport(object):
 	"""Handles an HTTP transaction to an XML-RPC server."""
