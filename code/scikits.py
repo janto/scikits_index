@@ -44,7 +44,7 @@ class Page(webapp.RequestHandler):
 		if show_latest_changes:
 			newest_packages_html = []
 
-			oldest = datetime.fromtimestamp(time.time() - SECONDS_IN_WEEK * 3)
+			oldest = datetime.datetime.fromtimestamp(time.time() - SECONDS_IN_WEEK * 3)
 			news_items = []
 			for package in Package.packages().values():
 				first_char = package.name[0]
@@ -431,8 +431,13 @@ def collect_templates():
 	'''.strip() % locals())
 	return "\n".join(result)
 
-class AdminPage(Page):
-	name="admin"
+class EditPage(Page):
+	editors = [
+		"jantod@gmail.com",
+		"sjvdwalt@gmail.com",
+		"damian.eads@gmail.com",
+	]
+	name="edit"
 	def get(self):
 		"""
 		@template_name
@@ -448,17 +453,17 @@ class AdminPage(Page):
 		user = users.get_current_user()
 		self.write("<p>")
 		if not user:
-			self.write('only site admins allowed here.\n')
-			self.write('<a href="%s">sign in</a>' % users.create_login_url("/admin"))
+			self.write('only site editors allowed here.\n')
+			self.write('<a href="%s">sign in</a>' % users.create_login_url("/edit"))
 			self.print_footer()
 			return
-		if not users.is_current_user_admin():
-			self.write('only site admin allowed here.\n')
-			self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
+		if users.get_current_user().email().lower() not in self.editors:
+			self.write('only site editors allowed here.\n')
+			self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/edit"))
 			self.print_footer()
 			return
 		self.write("welcome %s.\n" % user.nickname())
-		self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
+		self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/edit"))
 		self.write("</p>")
 
 		# backup and stats
@@ -477,7 +482,7 @@ class AdminPage(Page):
 				)
 				self.write("sent backup to %s at %s" % (address, t))
 		self.write("""
-		<form action="/admin" method="post">
+		<form action="/edit" method="post">
 		<input type="hidden" name="email_backup" value="yes">
 		<input type="submit" value="Email me a backup" />
 		</form>
@@ -503,7 +508,6 @@ class AdminPage(Page):
 			self.write("</p>")
 
 		# list templates
-
 		for template_name in [
 			"header",
 			"footer",
@@ -526,7 +530,7 @@ class AdminPage(Page):
 			self.write("""
 <h2>%(template_name)s</h2>
 <p>
-<form action="/admin" method="post">
+<form action="/edit" method="post">
 <textarea name="template_text" cols="80" rows="20">%(template_text)s</textarea>
 <input type="hidden" name="template_name" value="%(template_name)s">
 <br />
@@ -536,8 +540,38 @@ class AdminPage(Page):
 </p>
 			""" % locals())
 
+		self.print_footer()
 
-		self.write("<h1>Other</h1>")
+	post = get
+
+class AdminPage(Page):
+
+	name="admin"
+	def get(self):
+		"""
+		@clear_memcache
+
+		"""
+		self.print_header()
+		self.print_menu()
+
+		# authorize
+
+		user = users.get_current_user()
+		self.write("<p>")
+		if not user:
+			self.write('only site admins allowed here.\n')
+			self.write('<a href="%s">sign in</a>' % users.create_login_url("/admin"))
+			self.print_footer()
+			return
+		if not users.is_current_user_admin():
+			self.write('only site admin allowed here.\n')
+			self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
+			self.print_footer()
+			return
+		self.write("welcome %s.\n" % user.nickname())
+		self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
+		self.write("</p>")
 
 		# memcache management
 		self.write("<h2>memcache</h2>")
@@ -633,6 +667,7 @@ application = webapp.WSGIApplication([
 	('/search', SearchPage),
 	('/admin', AdminPage),
 	('/debug', DebugPage),
+	('/edit', EditPage),
 	('/robots.txt', RobotsPage),
 
 	('/(.+)', PackageInfoPage),

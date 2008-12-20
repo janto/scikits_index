@@ -4,6 +4,7 @@ from utils import *
 
 import cgi
 import datetime
+from BeautifulSoup import BeautifulSoup
 import wsgiref.handlers
 
 import re
@@ -103,9 +104,6 @@ def fetch_dir_links(url, cache_duration=None):
 	items = re.findall('<a href="(.+?)/">.+?</a>', result.content)
 	return [os.path.join(url, item) for item in items if not item.startswith("http://") and not item.startswith("..")]
 
-from datetime import datetime
-from BeautifulSoup import BeautifulSoup
-
 def fetch_links_with_dates(url, cache_duration=None):
 	response = get_url(url, cache_duration=cache_duration)
 	if response.status_code != 200:
@@ -129,7 +127,7 @@ def fetch_links_with_dates(url, cache_duration=None):
 		# find date field
 		for td in tr.findAll("td"):
 			try:
-				t = datetime.strptime(str(td.contents[0]).strip(), "%d-%b-%Y %H:%M")
+				t = datetime.datetime.strptime(str(td.contents[0]).strip(), "%d-%b-%Y %H:%M")
 				break
 			except ValueError:
 				continue

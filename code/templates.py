@@ -63,7 +63,7 @@ footer_template = """
 
 <div class="footer">
 See the <a href="http://code.google.com/p/scikits-index/source/checkout">source</a>.
-Created page in %(load_time)0.3f seconds. <a href="/admin">Admin</a>.
+Created page in %(load_time)0.3f seconds. <a href="/edit">Edit Pages</a>.
 <br />
 Designed by <a href="http://janto.blogspot.com/">Janto Dreijer</a>.
 Appearance based on <a href="http://sphinx.pocoo.org/">Sphinx</a> and <a href="http://www.vistaicons.com/icon/i160s0/phuzion_icon_pack.htm">Phuzion icons</a>.
@@ -183,16 +183,23 @@ People: %(people)s <br />
 You can download the latest distribution from PyPI here: <a href="http://pypi.python.org/pypi/%(name)s">http://pypi.python.org/pypi/%(name)s</a>
 </p>
 
-<h4>EasyInstall</h4>
+<h4>Easy Install</h4>
 <p>
-Install the <a href="http://peak.telecommunity.com/DevCenter/EasyInstall">EasyInstall</a> tools. Afterwards you can install %(name)s from the terminal by executing:
-<code>sudo easy_install %(name)s</code>
+Install the <a href="http://peak.telecommunity.com/DevCenter/EasyInstall">Easy Install</a> tools. Afterwards you can install %(name)s from the terminal by executing:
+<pre>sudo easy_install %(name)s</pre>
+</p>
+
+<p>
+If you prefer to do a local installation, specify an installation prefix:
+<pre>easy_install --prefix=${HOME} %(name)s</pre>
+and ensure that your <code>PYTHONPATH</code> is up to date, e.g.:
+<pre>export PYTHONPATH=$PYTHONPATH:${HOME}/lib/python2.5/site-packages</pre>
 </p>
 
 <h4>Source code</h4>
 <p>
-You can get the latest sources from the repository
-<code>svn checkout <a href="%(repo_url)s">%(repo_url)s</a></code>
+You can get the latest sources from the repository using
+<pre>svn checkout <a href="%(repo_url)s">%(repo_url)s</a></pre>
 </p>
 
 """
