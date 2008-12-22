@@ -218,7 +218,7 @@ def table_of_packages(packages):
 			result.append('<tr>')
 		d = p.info()
 		r = """
-		<td><a href="/%(name)s">%(short_name)s</a></td>
+		<td><a href="/%(short_name)s">%(short_name)s</a></td>
 		<td>%(shortdesc)s</td>
 		</tr>
 		""" % dictadd(p.__dict__, d, locals())
