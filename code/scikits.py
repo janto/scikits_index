@@ -39,6 +39,7 @@ class Page(webapp.RequestHandler):
 		search_box_html = SearchPage.search_box()
 
 		# latest changes
+		listing_urls = [] # the urls checked for updates
 		show_latest_changes = 1
 		newest_packages_html = ""
 		if show_latest_changes:
@@ -49,11 +50,14 @@ class Page(webapp.RequestHandler):
 			for package in Package.packages().values():
 				first_char = package.name[0]
 				package_name = package.name
+				short_name = package.info()["short_name"]
 
 				package_news_items = []
 				for dist in ["2.5", "2.6", "3.0", "any", "source"]: # check various distributions
 					url = "http://pypi.python.org/packages/%(dist)s/%(first_char)s/%(package_name)s/" % locals()
-					items = fetch_links_with_dates(url, FETCH_CACHE_AGE*random.uniform(0.5, 1.5))
+					listing_urls.append(url) # remember for forcing fetch
+					#~ items = fetch_links_with_dates(url, FETCH_CACHE_AGE*random.uniform(0.5, 1.5))
+					items = fetch_links_with_dates(url, FETCH_CACHE_AGE)
 					if items is None:
 						continue
 					package_news_items.extend([(name, _url, t) for name, _url, t in items if oldest < t])
@@ -62,18 +66,35 @@ class Page(webapp.RequestHandler):
 				if package_news_items:
 					actions = ", ".join(name for name, _url, t in package_news_items)
 
-					newest_packages_html.append('<a href="http://pypi.python.org/pypi/%(package_name)s" title="%(actions)s">%(package_name)s</a><br />\n' % locals())
+					newest_packages_html.append('<a href="/%(short_name)s" title="%(actions)s">%(short_name)s</a><br />\n' % locals())
 
 			newest_packages_html = "\n".join(sorted(newest_packages_html)[:5])
 			if newest_packages_html:
 				newest_packages_html = "<h3>Latest Releases</h3>\n%s" % newest_packages_html
+
+		# force a fetch of one of the http listings
+		key = "next_listing_url_index"
+		n = memcache.get(key)
+		if n is None:
+			n = 0
+		memcache.set(key, (n+1) % len(listing_urls)) # set the next url to be fetched
+		url = listing_urls[n]
+		self.logger.info("forcing fetch of url: %s" % url)
+		newest_packages_html += "<!-- forced fetch of url : %s -->\n" % url
+		get_url(url, cache_duration=FETCH_CACHE_AGE, force_fetch=True)
+
 
 		# admin sidebar
 		admin_sidebar_html = ""
 		if users.is_current_user_admin():
 			admin_sidebar_html = """
 			<h3><a href="/admin">Admin</a></h3>
-			<a href="%s">sign out</a>
+				<ul>
+				<li><a href="%s">Sign Out</a></li>
+				<li><a href="http://appengine.google.com/dashboard?&app_id=scikits">GAE Dashboard</a> </li>
+				<li><a href="http://code.google.com/appengine/docs/">GAE Docs</a> </li>
+				<li><a href="https://www.google.com/analytics/reporting/?reset=1&id=13320564">Analytics</a> </li>
+				</ul>
 			""" % users.create_logout_url("/admin")
 
 		self.write(get_template("header") % locals())
@@ -433,9 +454,9 @@ def collect_templates():
 
 class EditPage(Page):
 	editors = [
-		"jantod@gmail.com",
-		"sjvdwalt@gmail.com",
-		"damian.eads@gmail.com",
+		"jantod"+"@gmail.com",
+		"sjvdwalt"+"@gmail.com",
+		"damian.eads"+"@gmail.com",
 	]
 	name="edit"
 	def get(self):
@@ -573,6 +594,10 @@ class AdminPage(Page):
 		self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
 		self.write("</p>")
 
+		key = "next_package_fetch_index"
+		self.write("<h2>%s</h2>" % key)
+		self.write(memcache.get(key))
+
 		# memcache management
 		self.write("<h2>memcache</h2>")
 		if self.request.get("clear_memcache"):
@@ -587,15 +612,6 @@ class AdminPage(Page):
 </form>
 </p>
 		""" % memcache.get_stats())
-
-
-		self.write("""
-		<h2>Useful links</h2>
-		<a href="http://appengine.google.com/dashboard?&app_id=scikits">Google App Engine Dashboard</a> <br />
-		<a href="http://code.google.com/appengine/docs/">Google App Engine Docs</a> <br />
-		<a href="https://www.google.com/analytics/reporting/?reset=1&id=13320564">Google Analytics</a> <br />
-
-		""")
 
 		self.print_footer()
 

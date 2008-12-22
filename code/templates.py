@@ -103,13 +103,13 @@ and bioinformatics.  <a href="/about">Learn more...</a>
 	<td width="50%%">
 
 	<p class="biglink">
-	<img src="/static/images/download_large.png" width="32" style="float: left; padding-bottom: 20px; padding-right: 10px;"/>
+	<img src="/static/images/download_32.png" width="32" style="float: left; padding-bottom: 20px; padding-right: 10px;"/>
 	<a class="biglink" href="/scikits">Download a SciKit</a><br/>
 	<span class="linkdescr">Index of all SciKits.</span>
 	</p>
 
 	<p class="biglink">
-	<img src="/static/images/organize.png" width="32" style="float: left; padding-bottom: 20px; padding-right: 10px;"/>
+	<img src="/static/images/organize_32.png" width="32" style="float: left; padding-bottom: 20px; padding-right: 10px;"/>
 	<a class="biglink" href="/contribute">Contribute</a><br/>
 	<span class="linkdescr">Add your own SciKit or join an existing project.</span>
 	</p>
