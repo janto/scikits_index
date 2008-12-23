@@ -444,7 +444,7 @@ def collect_templates():
 	query = PageTemplate.all()
 	for template in query.order("name"):
 		template_name = template.name
-		template_text = htmlquote(template.text).strip()
+		template_text = template.text.strip()
 		result.append('''
 %(template_name)s_template = """
 %(template_text)s
@@ -498,8 +498,8 @@ class EditPage(Page):
 				mail.send_mail(sender="jantod@gmail.com",
 					to=address,
 					subject="scikits index backup %s" % t,
-					body="""Here's the backups. GAE escaped the html tag chars. Sorry.\nIf there isn't anything attached to this message then all pages were loaded from the template.py file.""",
-					attachments=[("templates.py.txt", collect_templates())] #XXX GAE keeps escaping the <> chars! arg!
+					body="""Here's the backups. \nIf there isn't anything attached to this message then all pages were loaded from the template.py file.""",
+					attachments=[("templates.py.txt", collect_templates())]
 				)
 				self.write("sent backup to %s at %s" % (address, t))
 		self.write("""
