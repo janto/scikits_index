@@ -16,6 +16,8 @@ from google.appengine.api import users
 
 import xmlrpclib
 
+import PyRSS2Gen
+
 # set up locations
 ROOT = os.path.dirname(__file__)
 ON_DEV_SERVER = os.environ.get("SERVER_SOFTWARE", "dev").lower().startswith("dev")
@@ -28,7 +30,9 @@ SECONDS_IN_WEEK = SECONDS_IN_DAY * 7
 SECONDS_IN_MONTH = SECONDS_IN_DAY * 28
 
 # how often new data needs to be loaded
-FETCH_CACHE_AGE = SECONDS_IN_HOUR * 2
+PACKAGE_INFO_CACHE_DURATION = SECONDS_IN_HOUR * 2
+PACKAGE_NEWS_CACHE_DURATION = SECONDS_IN_DAY * 2
+PACKAGE_LISTING_CACHE_DURATION = SECONDS_IN_HOUR * 2
 
 import time
 
@@ -76,9 +80,7 @@ class Cache(object):
 		timeout = (time.time()+duration) if duration is not None else None
 		return memcache.set(key=key, value=(value, timeout))
 
-def get_url(url, force_fetch=False, cache_duration=FETCH_CACHE_AGE):
-	if cache_duration is None:
-		cache_duration = FETCH_CACHE_AGE
+def get_url(url, force_fetch=False, cache_duration=None):
 	response, expired = Cache.get(url)
 	if expired or force_fetch:
 		logger.debug("fetching %s" % url)

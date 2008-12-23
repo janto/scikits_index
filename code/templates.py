@@ -164,7 +164,7 @@ package_info_template = """
 </p>
 
 <p>
-<img src="/static/images/download_large.png" width="16" border="0" /> Download:  %(download_link)s <br />
+<img src="/static/images/download_32.png" width="16" border="0" /> Download:  %(download_link)s <br />
 Homepage: <a href="%(homepage)s">%(homepage)s</a> <br />
 PyPI: <a href="http://pypi.python.org/pypi/%(name)s">http://pypi.python.org/pypi/%(name)s</a> <br />
 Source Repository: <a href="%(repo_url)s">%(repo_url)s</a> <br />

@@ -39,33 +39,18 @@ class Page(webapp.RequestHandler):
 		search_box_html = SearchPage.search_box()
 
 		# latest changes
-		listing_urls = [] # the urls checked for updates
+		checked_urls = [] # the urls checked for updates
 		show_latest_changes = 1
 		newest_packages_html = ""
 		if show_latest_changes:
 			newest_packages_html = []
 
-			oldest = datetime.datetime.fromtimestamp(time.time() - SECONDS_IN_WEEK * 3)
-			news_items = []
 			for package in Package.packages().values():
-				first_char = package.name[0]
-				package_name = package.name
 				short_name = package.info()["short_name"]
-
-				package_news_items = []
-				for dist in ["2.5", "2.6", "3.0", "any", "source"]: # check various distributions
-					url = "http://pypi.python.org/packages/%(dist)s/%(first_char)s/%(package_name)s/" % locals()
-					listing_urls.append(url) # remember for forcing fetch
-					#~ items = fetch_links_with_dates(url, FETCH_CACHE_AGE*random.uniform(0.5, 1.5))
-					items = fetch_links_with_dates(url, FETCH_CACHE_AGE)
-					if items is None:
-						continue
-					package_news_items.extend([(name, _url, t) for name, _url, t in items if oldest < t])
-				package_news_items.sort(key=lambda c: (c[-1], name))
-
+				package_news_items, _checked_urls = package.release_files(return_checked_urls=True)
+				checked_urls.extend(_checked_urls)
 				if package_news_items:
 					actions = ", ".join(name for name, _url, t in package_news_items)
-
 					newest_packages_html.append('<a href="/%(short_name)s" title="%(actions)s">%(short_name)s</a><br />\n' % locals())
 
 			newest_packages_html = "\n".join(sorted(newest_packages_html)[:5])
@@ -77,11 +62,11 @@ class Page(webapp.RequestHandler):
 		n = memcache.get(key)
 		if n is None:
 			n = 0
-		memcache.set(key, (n+1) % len(listing_urls)) # set the next url to be fetched
-		url = listing_urls[n]
+		memcache.set(key, (n+1) % len(checked_urls)) # set the next url to be fetched
+		url = checked_urls[n]
 		self.logger.info("forcing fetch of url: %s" % url)
 		newest_packages_html += "<!-- forced fetch of url : %s -->\n" % url
-		get_url(url, cache_duration=FETCH_CACHE_AGE, force_fetch=True)
+		get_url(url, force_fetch=True, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
 
 
 		# admin sidebar
@@ -141,7 +126,6 @@ class ContributePage(Page):
 		self.print_menu()
 		self.write(get_template("contribute_page") % locals())
 		self.print_footer()
-
 
 class PackagesPage(Page):
 
@@ -234,6 +218,29 @@ class Package(object):
 		self.name = name
 		self.repo_url = repo_url
 
+	def release_files(self, return_checked_urls=False):
+		first_char = self.name[0]
+		package_name = self.name
+		short_name = self.info()["short_name"]
+
+		oldest = datetime.datetime.fromtimestamp(time.time() - SECONDS_IN_WEEK * 3)
+
+		package_news_items = []
+		checked_urls = []
+		for dist in ["2.5", "2.6", "3.0", "any", "source"]: # check various distributions
+			url = "http://pypi.python.org/packages/%(dist)s/%(first_char)s/%(package_name)s/" % locals()
+			checked_urls.append(url) # remember for forcing fetch
+			items = fetch_links_with_dates(url, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
+			if items is None:
+				continue
+			package_news_items.extend([(name, _url, t) for name, _url, t in items if oldest < t])
+		package_news_items.sort(key=lambda c: (c[-1], c[0])) # oldest first
+
+		if return_checked_urls:
+			return package_news_items, checked_urls
+
+		return package_news_items
+
 	@classmethod
 	def packages(self):
 		packages, expired = Cache.get("packages")
@@ -270,7 +277,7 @@ class Package(object):
 					package = Package(name=package_name, repo_url=repo_url)
 					packages[package.name] = package
 
-			assert Cache.set(key="packages", value=packages, duration=FETCH_CACHE_AGE), package
+			assert Cache.set(key="packages", value=packages, duration=PACKAGE_LISTING_CACHE_DURATION), package
 
 		return packages
 
@@ -310,7 +317,11 @@ class Package(object):
 			revision="",
 			people="",
 			)
-		doap_result = get_url("http://pypi.python.org/pypi?:action=doap&name=%s" % self.name, force_fetch=force_fetch)
+		doap_result = get_url(
+			"http://pypi.python.org/pypi?:action=doap&name=%s" % self.name,
+			force_fetch=force_fetch,
+			cache_duration=PACKAGE_INFO_CACHE_DURATION,
+			)
 		if doap_result.status_code == 200:
 
 			doap_text = doap_result.content
@@ -594,15 +605,12 @@ class AdminPage(Page):
 		self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
 		self.write("</p>")
 
-		key = "next_package_fetch_index"
-		self.write("<h2>%s</h2>" % key)
-		self.write(memcache.get(key))
-
 		# memcache management
 		self.write("<h2>memcache</h2>")
 		if self.request.get("clear_memcache"):
 			memcache.flush_all()
 			self.write("<p><strong>flushed memcache</strong></p>")
+
 		self.write("""
 <p>
 %s
@@ -612,6 +620,14 @@ class AdminPage(Page):
 </form>
 </p>
 		""" % memcache.get_stats())
+
+		key = "next_package_fetch_index"
+		self.write("<h3>%s</h3>" % key)
+		self.write(memcache.get(key))
+
+		key = "next_listing_url_index"
+		self.write("<h3>%s</h3>" % key)
+		self.write(memcache.get(key))
 
 		self.print_footer()
 
@@ -670,6 +686,31 @@ class RobotsPage(Page):
 	def get(self):
 		return
 
+class RSSFeedPage(Page):
+	def get(self):
+
+		items = []
+		for package in Package.packages().values():
+			d = package.info()
+			short_name = d["short_name"]
+			for (name, url, t) in package.release_files():
+				rss_item = PyRSS2Gen.RSSItem(
+					title = name,
+					link = "http://scikits.appspot.com/%s" % short_name,
+					description = 'Released file: <a href="%(url)s">%(url)s</a>' % locals(),
+					guid = PyRSS2Gen.Guid("http://scikits.appspot.com/%(short_name)s?feed_update=%(name)s" % locals()),
+					pubDate = t)
+				items.append(rss_item)
+
+		rss = PyRSS2Gen.RSS2(
+			title = "SciKits",
+			link = "http://scikits.appspot.com/",
+			description = "Updates to SciKits release files",
+			lastBuildDate = datetime.datetime.now(),
+			items = items)
+
+		self.write(rss.to_xml())
+
 application = webapp.WSGIApplication([
 	('/', MainPage),
 
@@ -685,6 +726,7 @@ application = webapp.WSGIApplication([
 	('/debug', DebugPage),
 	('/edit', EditPage),
 	('/robots.txt', RobotsPage),
+	('/feed', RSSFeedPage),
 
 	('/(.+)', PackageInfoPage),
 	], debug=True)
