@@ -7,6 +7,7 @@ header_template = """
 	<script type="text/javascript" src="/static/jquery.corners.min.js"></script>
 
 	<link href="/static/sphinxdoc.css" rel="stylesheet" type="text/css" />
+	<link href="/static/images/download_32.png" rel="icon" type="image/png" />
 
 </head>
 
