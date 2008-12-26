@@ -21,7 +21,6 @@ import PyRSS2Gen
 # set up locations
 ROOT = os.path.dirname(__file__)
 ON_DEV_SERVER = os.environ.get("SERVER_SOFTWARE", "dev").lower().startswith("dev")
-REPO_PATH = "http://svn.scipy.org/svn/scikits/trunk"
 
 SECONDS_IN_MINUTE = 60
 SECONDS_IN_HOUR = SECONDS_IN_MINUTE * 60

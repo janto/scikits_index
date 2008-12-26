@@ -8,6 +8,7 @@ header_template = """
 
 	<link href="/static/sphinxdoc.css" rel="stylesheet" type="text/css" />
 	<link href="/static/images/download_32.png" rel="icon" type="image/png" />
+	<link href="/rss.xml" rel="alternate" type="application/rss+xml" title="SciKits Releases" />
 
 </head>
 

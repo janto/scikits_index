@@ -68,7 +68,6 @@ class Page(webapp.RequestHandler):
 		newest_packages_html += "<!-- forced fetch of url : %s -->\n" % url
 		get_url(url, force_fetch=True, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
 
-
 		# admin sidebar
 		admin_sidebar_html = ""
 		if users.is_current_user_admin():
@@ -249,18 +248,25 @@ class Package(object):
 
 			from_repo = 1
 			if from_repo:
-				logger.info("loading packages from repo")
-				for repo_url in fetch_dir_links(REPO_PATH):
-					package_name = "scikits.%s" % os.path.split(repo_url)[1]
+				for repo_base_url in [
+						"http://svn.scipy.org/svn/scikits/trunk",
+						"http://svn.scipy.org/svn/scikits/trunk/learn/scikits/learn/machine/",
+						]:
+					logger.info("loading packages from repo %s" % repo_base_url)
+					for repo_url in fetch_dir_links(repo_base_url):
+						package_name = "scikits.%s" % os.path.split(repo_url)[1]
+						if package_name in packages:
+							continue
 
-					# check if really a package
-					#~ url = os.path.join(repo_url, "setup.py")
-					#~ result = get_url(url)
-					#~ if result.status_code != 200: # setup.py was not found
-						#~ continue
 
-					package = Package(name=package_name, repo_url=repo_url)
-					packages[package.name] = package
+						# check if really a package
+						#~ url = os.path.join(repo_url, "setup.py")
+						#~ result = get_url(url)
+						#~ if result.status_code != 200: # setup.py was not found
+							#~ continue
+
+						package = Package(name=package_name, repo_url=repo_url)
+						packages[package.name] = package
 
 			from_pypi_search = 1
 			if from_pypi_search:
@@ -284,11 +290,27 @@ class Package(object):
 	def __cmp__(self, other):
 		return cmp(self.name, other.name)
 
+	def python_versions(self):
+		#XXX xmlrpc call truncated?
+		return
+
+		server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
+		release_versions = server.package_releases(self.name)
+		python_versions = []
+		for release_version in sorted(release_versions, reverse=True):
+			for d in server.release_urls(self.name, release_version):
+				release_versions.append(d["python_version"])
+			break #XXX only the biggest listed version number?
+		return python_versions
+
 	def download_links_html(self):
+		#XXX xmlrpc call truncated?
+		return
+
 		text = []
 		server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
 		versions = server.package_releases(self.name)
-		for version in versions:
+		for version in sorted(versions, reverse=True):
 			text.append("<table>")
 			text.append("""<tr>
 				<th>Python version</th>
@@ -305,7 +327,7 @@ class Package(object):
 				text.append("</tr>")
 			text.append("</table>")
 
-			break # only the first listed version?
+			break #XXX only the biggest listed version number?
 		return "\n".join(text)
 
 	def info(self, force_fetch=False):
@@ -377,7 +399,6 @@ class Package(object):
 		#~ logger.debug(parts)
 		#~ escaped_description = parts["fragment"]
 
-		#~ if "WARNING" in escaped_description:
 		escaped_description = htmlquote(d["description"]).replace(r"\n", "<br />\n")
 
 		revision = d.get("revision")
@@ -605,6 +626,12 @@ class AdminPage(Page):
 		self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
 		self.write("</p>")
 
+		self.write("""
+
+		<a href="http://feedvalidator.org.li.sabren.com/check.cgi?url=http%3A//scikits.appspot.com/rss.xml">validate rss</a>
+
+		""")
+
 		# memcache management
 		self.write("<h2>memcache</h2>")
 		if self.request.get("clear_memcache"):
@@ -647,38 +674,10 @@ class DebugPage(Page):
 		self.print_header()
 		self.print_menu()
 
-		#~ http://wiki.python.org/moin/PyPiXmlRpc
-		server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
 
-		self.write("scikits:<br />\n")
-		results = server.search(dict(name="scikits"))
-		package_names = sorted(set(result["name"] for result in results)) # unique names, pypi contains duplicate names
-		self.write(package_names)
-		self.write("<br />\n")
-
-		#~ for result in results:
-			#~ self.write(result)
-			#~ self.write("<br />\n")
-
-		package_name = 'scikits.ann'
-		versions = server.package_releases(package_name)
-		self.write(versions)
-		self.write("<br />\n")
-
-		for version in versions:
-			d = server.release_data(package_name, version)
-			self.write(d)
-			self.write("<br />\n")
-
-			for d in server.release_urls(package_name, version):
-				self.write(d)
-				self.write("<br />\n")
-
-			break # only latest
-
-		self.write("download:")
 		for p in Package.packages().values():
-			self.write(p.download_links_html())
+			self.write("<h4>%s</h4>\n" % p.name)
+			self.write(p.python_versions())
 
 		self.print_footer()
 
@@ -698,18 +697,18 @@ class RSSFeedPage(Page):
 					title = name,
 					link = "http://scikits.appspot.com/%s" % short_name,
 					description = 'Released file: <a href="%(url)s">%(url)s</a>' % locals(),
-					guid = PyRSS2Gen.Guid("http://scikits.appspot.com/%(short_name)s?feed_update=%(name)s" % locals()),
+					guid = PyRSS2Gen.Guid("http://scikits.appspot.com/%(short_name)s?feed_release=%(name)s" % locals()),
 					pubDate = t)
 				items.append(rss_item)
 
 		rss = PyRSS2Gen.RSS2(
 			title = "SciKits",
 			link = "http://scikits.appspot.com/",
-			description = "Updates to SciKits release files",
+			description = "SciKits released via PyPI",
 			lastBuildDate = datetime.datetime.now(),
 			items = items)
 
-		self.write(rss.to_xml())
+		self.write(rss.to_xml("utf-8"))
 
 application = webapp.WSGIApplication([
 	('/', MainPage),
@@ -726,7 +725,7 @@ application = webapp.WSGIApplication([
 	('/debug', DebugPage),
 	('/edit', EditPage),
 	('/robots.txt', RobotsPage),
-	('/feed', RSSFeedPage),
+	('/rss.xml', RSSFeedPage),
 
 	('/(.+)', PackageInfoPage),
 	], debug=True)
