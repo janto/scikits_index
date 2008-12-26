@@ -55,7 +55,9 @@ class Page(webapp.RequestHandler):
 
 			newest_packages_html = "\n".join(sorted(newest_packages_html)[:5])
 			if newest_packages_html:
-				newest_packages_html = "<h3>Latest Releases</h3>\n%s" % newest_packages_html
+				#~ feed_icon = '<a href="/rss.xml" style="font: bold 0.75em sans-serif; color: #fff; background: #f60; padding: 0.2em 0.35em; float: left;">RSS</a>'
+				feed_icon = '<a href="/rss.xml" style="font: 0.75em sans-serif; text-decoration: underline">(RSS)</a>'
+				newest_packages_html = '<h3>Latest Releases %s</h3>\n%s' % (feed_icon, newest_packages_html)
 
 		# force a fetch of one of the http listings
 		key = "next_listing_url_index"
