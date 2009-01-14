@@ -9,6 +9,11 @@ one page summary of all packages in repository, short descriptions, quick instal
 This websites acts as a simple layer on top of PyPI and the web interface to the subversion repository.
 Hosting of release files is done on PyPI. PyPI already has basic project management that can be leveraged.
 
+Installation
+=======
+You can run a local version with the ``run.sh`` file.
+See the ``upload.sh`` file on how to upload to GAE. You'll have to modify the email address.
+
 About the implementation
 ===============
 
@@ -23,7 +28,6 @@ Assuming a developer has code (based on example scikit) somewhere under http://s
 When a developer wants to update his kit's information, he should update his setup.py and rerun "python setup.py register".
 
 When a developer wants to release a new version of his kit he either manually uploads it to PyPI or uses distutils (e.g. "python setup.py sdist bdist_wininst upload" [http://www.python.org/doc/2.5.2/dist/package-upload.html).
-
 
 Issues
 ====

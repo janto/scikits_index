@@ -86,6 +86,7 @@ class Page(webapp.RequestHandler):
 		self.write(get_template("header") % locals())
 
 	def print_footer(self):
+		# google analytics
 		# http://code.google.com/apis/analytics/docs/gaTrackingOverview.html
 		google_analytics = """
 			<script type="text/javascript">
@@ -260,7 +261,6 @@ class Package(object):
 						if package_name in packages:
 							continue
 
-
 						# check if really a package
 						#~ url = os.path.join(repo_url, "setup.py")
 						#~ result = get_url(url)
@@ -281,6 +281,7 @@ class Package(object):
 					if package_name in packages:
 						continue
 
+					#~ package_name_short = package_name.split(".", 1)[0] if package_name.startswith("scikits.") else package_name
 					repo_url = "" #XXX where can we get this?
 					package = Package(name=package_name, repo_url=repo_url)
 					packages[package.name] = package
@@ -685,7 +686,11 @@ class DebugPage(Page):
 
 class RobotsPage(Page):
 	def get(self):
-		return
+		#XXX are new lines ignored?
+		self.write("""
+User-agent: *
+Disallow: /static/
+		""".strip())
 
 class RSSFeedPage(Page):
 	def get(self):
@@ -726,7 +731,7 @@ application = webapp.WSGIApplication([
 	('/admin', AdminPage),
 	('/debug', DebugPage),
 	('/edit', EditPage),
-	('/robots.txt', RobotsPage),
+	#~ ('/robots.txt', RobotsPage),
 	('/rss.xml', RSSFeedPage),
 
 	('/(.+)', PackageInfoPage),
