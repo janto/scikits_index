@@ -22,6 +22,9 @@ logger-level rule-of-thumbs
 
 """
 
+class NoSuchTemplateException(Exception):
+	pass
+
 class Page(webapp.RequestHandler):
 
 	name = ""
@@ -35,7 +38,7 @@ class Page(webapp.RequestHandler):
 		self.response.out.write(text)
 
 	def print_header(self):
-		title = self.name
+		name = self.name
 		search_box_html = SearchPage.search_box()
 
 		# latest changes
@@ -104,6 +107,7 @@ class Page(webapp.RequestHandler):
 		if ON_DEV_SERVER:
 			google_analytics = "<!-- google analytics skipped when not run at google -->"
 		load_time = time.time() - self.init_time
+		name = self.name
 		self.write(get_template("footer") % locals())
 
 	def print_menu(self):
@@ -116,7 +120,7 @@ class MainPage(Page):
 	def get(self):
 		self.print_header()
 		self.print_menu()
-		self.write(get_template("main_page")% locals())
+		self.write(get_template(self.name)% locals())
 		self.print_footer()
 
 class ContributePage(Page):
@@ -126,7 +130,7 @@ class ContributePage(Page):
 	def get(self):
 		self.print_header()
 		self.print_menu()
-		self.write(get_template("contribute_page") % locals())
+		self.write(get_template(self.name) % locals())
 		self.print_footer()
 
 class PackagesPage(Page):
@@ -463,10 +467,14 @@ class SearchPage(Page):
 		self.print_footer()
 
 def get_template(name):
+	assert name, name
 	template = PageTemplate.all().filter("name =", name).get()
 	if template is not None:
 		return template.text
-	return getattr(templates, name+"_template").strip()
+	try:
+		return getattr(templates, name+"_template").strip()
+	except AttributeError:
+		raise NoSuchTemplateException(name)
 
 class PageTemplate(db.Model):
 	name = db.StringProperty(required=True)
@@ -508,18 +516,19 @@ class EditPage(Page):
 
 		user = users.get_current_user()
 		self.write("<p>")
+		url_requested = os.environ["PATH_INFO"] + "?" + os.environ["QUERY_STRING"]
 		if not user:
 			self.write('only site editors allowed here.\n')
-			self.write('<a href="%s">sign in</a>' % users.create_login_url("/edit"))
+			self.write('<a href="%s">sign in</a>' % users.create_login_url(url_requested))
 			self.print_footer()
 			return
 		if users.get_current_user().email().lower() not in self.editors:
 			self.write('only site editors allowed here.\n')
-			self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/edit"))
+			self.write('<a href="%s">sign out</a>.' % users.create_logout_url(url_requested))
 			self.print_footer()
 			return
 		self.write("welcome %s.\n" % user.nickname())
-		self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/edit"))
+		self.write('<a href="%s">sign out</a>.' % users.create_logout_url(url_requested))
 		self.write("</p>")
 
 		# backup and stats
@@ -563,15 +572,11 @@ class EditPage(Page):
 			self.write("last_modified(<em>%s</em>) = %s" % (template.name, template.modified))
 			self.write("</p>")
 
+		template_name = self.request.get("template_name", None)
+		template_names = [template_name] if template_name is not None else templates.names
+
 		# list templates
-		for template_name in [
-			"header",
-			"footer",
-			"main_page",
-			"about",
-			"contribute_page",
-			"package_info",
-		]:
+		for template_name in template_names:
 			# check if in db
 			template = PageTemplate.all().filter("name =", template_name).get()
 			if template:

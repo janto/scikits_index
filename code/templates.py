@@ -1,8 +1,17 @@
+names = [
+	"header",
+	"footer",
+	"main",
+	"about",
+	"contribute",
+	"package_info",
+]
+
 header_template = """
 
 <html>
 <head>
-	<title>SciKits - %(title)s</title>
+	<title>SciKits - %(name)s</title>
 	<script type="text/javascript" src="/static/jquery.js"></script>
 	<script type="text/javascript" src="/static/jquery.corners.min.js"></script>
 
@@ -49,7 +58,7 @@ header_template = """
 <div class="bodywrapper">
 <div class="body">
 
-<div class="section" id="%(title)s">
+<div class="section" id="%(name)s">
 
 """
 
@@ -65,7 +74,7 @@ footer_template = """
 
 <div class="footer">
 See the <a href="http://code.google.com/p/scikits-index/source/checkout">source</a>.
-Created page in %(load_time)0.3f seconds. <a href="/edit">Edit Pages</a>.
+Created page in %(load_time)0.3f seconds. Edit <a href="/edit?template_name=%(name)s">this page</a> (<a href="/edit">all</a>).
 <br />
 Designed by <a href="http://janto.blogspot.com/">Janto Dreijer</a>.
 Appearance based on <a href="http://sphinx.pocoo.org/">Sphinx</a> and <a href="http://www.vistaicons.com/icon/i160s0/phuzion_icon_pack.htm">Phuzion icons</a>.
@@ -86,7 +95,7 @@ $(document).ready( function(){
 
 # =======================================
 
-main_page_template = """
+main_template = """
 <p>
 Welcome to SciKits!  Here you'll find a searchable index of
 add-on toolkits that complement <a href="http://www.scipy.org">SciPy</a>, a library of scientific computing routines.
@@ -142,7 +151,7 @@ Packages are packages as toolkits (instead of in the main, monolithic SciPy dist
 
 """
 
-contribute_page_template = """
+contribute_template = """
 <h1>Contribute</h1>
 
 <h3>Add your own package</h3>
