@@ -37,9 +37,10 @@ class Page(webapp.RequestHandler):
 	def write(self, text):
 		self.response.out.write(text)
 
-	def print_header(self):
-		name = self.name
-		search_box_html = SearchPage.search_box()
+	def print_header(self, title=None):
+		template_values = {}
+		template_values["name"] = title or self.name
+		template_values["search_box_html"] = SearchPage.search_box()
 
 		# latest changes
 		checked_urls = [] # the urls checked for updates
@@ -61,6 +62,7 @@ class Page(webapp.RequestHandler):
 				#~ feed_icon = '<a href="/rss.xml" style="font: bold 0.75em sans-serif; color: #fff; background: #f60; padding: 0.2em 0.35em; float: left;">RSS</a>'
 				feed_icon = '<a href="/rss.xml" style="font: 0.75em sans-serif; text-decoration: underline">(RSS)</a>'
 				newest_packages_html = '<h3>Latest Releases %s</h3>\n%s' % (feed_icon, newest_packages_html)
+			template_values["newest_packages_html"] = newest_packages_html
 
 		# force a fetch of one of the http listings
 		key = "next_listing_url_index"
@@ -70,14 +72,14 @@ class Page(webapp.RequestHandler):
 		memcache.set(key, (n+1) % len(checked_urls)) # set the next url to be fetched
 		url = checked_urls[n]
 		self.logger.info("forcing fetch of url: %s" % url)
-		newest_packages_html += "<!-- forced fetch of url : %s -->\n" % url
+		template_values["newest_packages_html"] += "<!-- forced fetch of url : %s -->\n" % url
 		get_url(url, force_fetch=True, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
 
 		# admin sidebar
-		admin_sidebar_html = ""
+		template_values["admin_sidebar_html"] = ""
 		if users.is_current_user_admin():
-			admin_sidebar_html = """
-			<h3><a href="/admin">Admin</a></h3>
+			template_values["admin_sidebar_html"] = """
+				<h3><a href="/admin">Admin</a></h3>
 				<ul>
 				<li><a href="%s">Sign Out</a></li>
 				<li><a href="http://appengine.google.com/dashboard?&app_id=scikits">GAE Dashboard</a> </li>
@@ -86,29 +88,51 @@ class Page(webapp.RequestHandler):
 				</ul>
 			""" % users.create_logout_url("/admin")
 
-		self.write(get_template("header") % locals())
+		# editor sidebar
+		template_values["editor_sidebar_html"] = ""
+		if current_user_is_editor():
+
+			html = ['<h3><a href="/edit">Edit</a></h3>']
+			html.append('<ul>')
+			try:
+				get_template(self.name)
+				html.append('<li><a href="/edit?template_name=%s">Edit this page</a>' % self.name)
+			except NoSuchTemplateException:
+				pass
+			html.append('<li><a href="/edit">Edit all pages</a>')
+			html.append('</ul>')
+
+			template_values["editor_sidebar_html"] = "\n".join(html)
+
+		self.write(get_template("header") % template_values)
 
 	def print_footer(self):
+		template_values = {}
 		# google analytics
 		# http://code.google.com/apis/analytics/docs/gaTrackingOverview.html
-		google_analytics = """
-			<script type="text/javascript">
-			var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-			document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-			</script>
-			<script type="text/javascript">
-			try {
-			var pageTracker = _gat._getTracker("UA-6588556-1");
-			pageTracker._trackPageview();
-			} catch(err) {}</script>
-		"""
-		#~ if os.environ.get("REMOTE_ADDR") == "127.0.0.1":
-			#~ google_analytics = "<!-- google analytics skipped when accessed from local -->"
 		if ON_DEV_SERVER:
-			google_analytics = "<!-- google analytics skipped when not run at google -->"
-		load_time = time.time() - self.init_time
-		name = self.name
-		self.write(get_template("footer") % locals())
+			template_values["google_analytics"] = "<!-- google analytics skipped when not run at google -->"
+		else:
+			template_values["google_analytics"] = """
+				<script type="text/javascript">
+				var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+				document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+				</script>
+				<script type="text/javascript">
+				try {
+				var pageTracker = _gat._getTracker("UA-6588556-1");
+				pageTracker._trackPageview();
+				} catch(err) {}</script>
+			"""
+
+		url_requested = os.environ["PATH_INFO"] + "?" + os.environ["QUERY_STRING"]
+		if users.get_current_user():
+			template_values["login_logout_html"] = '<a href="%s">Sign out</a>.' % users.create_logout_url(url_requested)
+		else:
+			template_values["login_logout_html"] = '<a href="%s">Sign in</a>' % users.create_login_url(url_requested)
+
+		template_values["load_time"] = time.time() - self.init_time
+		self.write(get_template("footer") % template_values)
 
 	def print_menu(self):
 		pass
@@ -120,7 +144,7 @@ class MainPage(Page):
 	def get(self):
 		self.print_header()
 		self.print_menu()
-		self.write(get_template(self.name)% locals())
+		self.write(get_template(self.name) % locals())
 		self.print_footer()
 
 class ContributePage(Page):
@@ -165,7 +189,7 @@ class PackagesPage(Page):
 		self.print_footer()
 
 class PackageInfoPage(Page):
-	name = "package info"
+	name = "package_info"
 
 	def get(self, *args):
 		"""
@@ -185,9 +209,8 @@ class PackageInfoPage(Page):
 			self.error(404)
 			self.write("404 not found")
 			return
-		self.name = package.name
 
-		self.print_header()
+		self.print_header(title=package.name)
 		self.print_menu()
 
 		self.write(package.to_html())
@@ -225,11 +248,12 @@ class Package(object):
 		self.repo_url = repo_url
 
 	def release_files(self, return_checked_urls=False):
+		logger.debug(self.name)
 		first_char = self.name[0]
 		package_name = self.name
 		short_name = self.info()["short_name"]
 
-		oldest = datetime.datetime.fromtimestamp(time.time() - SECONDS_IN_WEEK * 3)
+		oldest = datetime.datetime.fromtimestamp(time.time() - SECONDS_IN_MONTH)
 
 		package_news_items = []
 		checked_urls = []
@@ -239,7 +263,8 @@ class Package(object):
 			items = fetch_links_with_dates(url, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
 			if items is None:
 				continue
-			package_news_items.extend([(name, _url, t) for name, _url, t in items if oldest < t])
+			#~ package_news_items.extend([(name, _url, t) for name, _url, t in items if oldest < t])
+			package_news_items.extend([(name, _url, t) for name, _url, t in items]) #XXX temporarily disabled date threshold - not enough recent updates
 		package_news_items.sort(key=lambda c: (c[-1], c[0])) # oldest first
 
 		if return_checked_urls:
@@ -445,10 +470,10 @@ class SearchPage(Page):
 			w = 0
 			for field, text in package.info().items():
 				n = query_text in text.lower()
-				w += field_weight.get(field, 1) * n
+				w += field_weight.get(field, 1) * n # other fields get scores of 1
 			if 0 < w:
 				weights_packages.append((-w, package)) # negate value, so results with equal weight are alphabetical wrt names when sorted
-		weights_packages.sort() # highest scoring first
+		weights_packages.sort() # best scoring first
 		if weights_packages:
 			weights, packages = zip(*weights_packages)
 			self.write("\n<!-- ")
@@ -495,6 +520,12 @@ def collect_templates():
 	'''.strip() % locals())
 	return "\n".join(result)
 
+def current_user_is_editor():
+	user = users.get_current_user()
+	if user is None:
+		return False
+	return user.email().lower() in EditPage.editors
+
 class EditPage(Page):
 	editors = [
 		"jantod"+"@gmail.com",
@@ -515,21 +546,17 @@ class EditPage(Page):
 		# authorize
 
 		user = users.get_current_user()
-		self.write("<p>")
 		url_requested = os.environ["PATH_INFO"] + "?" + os.environ["QUERY_STRING"]
 		if not user:
 			self.write('only site editors allowed here.\n')
 			self.write('<a href="%s">sign in</a>' % users.create_login_url(url_requested))
 			self.print_footer()
 			return
-		if users.get_current_user().email().lower() not in self.editors:
+		if not current_user_is_editor():
 			self.write('only site editors allowed here.\n')
 			self.write('<a href="%s">sign out</a>.' % users.create_logout_url(url_requested))
 			self.print_footer()
 			return
-		self.write("welcome %s.\n" % user.nickname())
-		self.write('<a href="%s">sign out</a>.' % users.create_logout_url(url_requested))
-		self.write("</p>")
 
 		# backup and stats
 
@@ -589,7 +616,7 @@ class EditPage(Page):
 				modified_username = "loading from <i>template.py</i>"
 
 			self.write("""
-<h2>%(template_name)s</h2>
+<h2>template: <i>%(template_name)s</i></h2>
 <p>
 <form action="/edit" method="post">
 <textarea name="template_text" cols="80" rows="20">%(template_text)s</textarea>
@@ -619,7 +646,6 @@ class AdminPage(Page):
 		# authorize
 
 		user = users.get_current_user()
-		self.write("<p>")
 		if not user:
 			self.write('only site admins allowed here.\n')
 			self.write('<a href="%s">sign in</a>' % users.create_login_url("/admin"))
@@ -630,9 +656,6 @@ class AdminPage(Page):
 			self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
 			self.print_footer()
 			return
-		self.write("welcome %s.\n" % user.nickname())
-		self.write('<a href="%s">sign out</a>.' % users.create_logout_url("/admin"))
-		self.write("</p>")
 
 		self.write("""
 

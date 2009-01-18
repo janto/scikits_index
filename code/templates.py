@@ -45,6 +45,8 @@ header_template = """
 
 	%(admin_sidebar_html)s
 
+	%(editor_sidebar_html)s
+
 	%(newest_packages_html)s
 
 	<h3>Quick search</h3>
@@ -74,7 +76,7 @@ footer_template = """
 
 <div class="footer">
 See the <a href="http://code.google.com/p/scikits-index/source/checkout">source</a>.
-Created page in %(load_time)0.3f seconds. Edit <a href="/edit?template_name=%(name)s">this page</a> (<a href="/edit">all</a>).
+Created page in %(load_time)0.3f seconds. %(login_logout_html)s
 <br />
 Designed by <a href="http://janto.blogspot.com/">Janto Dreijer</a>.
 Appearance based on <a href="http://sphinx.pocoo.org/">Sphinx</a> and <a href="http://www.vistaicons.com/icon/i160s0/phuzion_icon_pack.htm">Phuzion icons</a>.
