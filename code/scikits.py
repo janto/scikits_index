@@ -81,12 +81,12 @@ class Page(webapp.RequestHandler):
 			template_values["admin_sidebar_html"] = """
 				<h3><a href="/admin">Admin</a></h3>
 				<ul>
-				<li><a href="%s">Sign Out</a></li>
+				<li><a href="/admin">Admin Page</a></li>
 				<li><a href="http://appengine.google.com/dashboard?&app_id=scikits">GAE Dashboard</a> </li>
 				<li><a href="http://code.google.com/appengine/docs/">GAE Docs</a> </li>
 				<li><a href="https://www.google.com/analytics/reporting/?reset=1&id=13320564">Analytics</a> </li>
 				</ul>
-			""" % users.create_logout_url("/admin")
+			"""
 
 		# editor sidebar
 		template_values["editor_sidebar_html"] = ""
@@ -493,7 +493,7 @@ class SearchPage(Page):
 
 def get_template(name):
 	assert name, name
-	template = PageTemplate.all().filter("name =", name).get()
+	template = DBPageTemplate.all().filter("name =", name).get()
 	if template is not None:
 		return template.text
 	try:
@@ -501,7 +501,7 @@ def get_template(name):
 	except AttributeError:
 		raise NoSuchTemplateException(name)
 
-class PageTemplate(db.Model):
+class DBPageTemplate(db.Model):
 	name = db.StringProperty(required=True)
 	text = db.TextProperty()
 	modified = db.DateTimeProperty(auto_now=False)
@@ -509,7 +509,7 @@ class PageTemplate(db.Model):
 
 def collect_templates():
 	result = []
-	query = PageTemplate.all()
+	query = DBPageTemplate.all()
 	for template in query.order("name"):
 		template_name = template.name
 		template_text = template.text.strip()
@@ -520,18 +520,24 @@ def collect_templates():
 	'''.strip() % locals())
 	return "\n".join(result)
 
+class DBEditors(db.Model):
+	email = db.StringProperty(required=True)
+	comment = db.StringProperty()
+
 def current_user_is_editor():
 	user = users.get_current_user()
 	if user is None:
 		return False
-	return user.email().lower() in EditPage.editors
+	addresses = [editor.email for editor in DBEditors.all().order("email")]
+	addresses.extend([
+		#~ "jantod"+"@gmail.com",
+		#~ "sjvdwalt"+"@gmail.com",
+		#~ "damian.eads"+"@gmail.com",
+	])
+	logger.debug(addresses)
+	return user.email().lower() in addresses
 
 class EditPage(Page):
-	editors = [
-		"jantod"+"@gmail.com",
-		"sjvdwalt"+"@gmail.com",
-		"damian.eads"+"@gmail.com",
-	]
 	name="edit"
 	def get(self):
 		"""
@@ -586,9 +592,9 @@ class EditPage(Page):
 		template_name = self.request.get("template_name")
 		template_text = self.request.get("template_text", "").strip()
 		if template_name and template_text: # user provided new content
-			template = PageTemplate.all().filter("name =", template_name).get()
+			template = DBPageTemplate.all().filter("name =", template_name).get()
 			if not template:
-				template = PageTemplate(name=template_name)
+				template = DBPageTemplate(name=template_name)
 			template.text = template_text
 			template.modified = datetime.datetime.now()
 			template.username = user.nickname()
@@ -605,7 +611,7 @@ class EditPage(Page):
 		# list templates
 		for template_name in template_names:
 			# check if in db
-			template = PageTemplate.all().filter("name =", template_name).get()
+			template = DBPageTemplate.all().filter("name =", template_name).get()
 			if template:
 				template_text = htmlquote(template.text)
 				modified_time = "modified %s," % template.modified
@@ -637,7 +643,12 @@ class AdminPage(Page):
 	name="admin"
 	def get(self):
 		"""
-		@clear_memcache
+		@clear_memcache = 1
+		@add_editor = 1
+		@modify_editor = 1
+
+		@email
+		@comment
 
 		"""
 		self.print_header()
@@ -663,6 +674,49 @@ class AdminPage(Page):
 
 		""")
 
+		# manage editors
+		email_address = self.request.get("email").strip()
+		if self.request.get("add_editor"):
+			editor = DBEditors(
+				comment=self.request.get("comment"),
+				email=email_address,
+				)
+			editor.put()
+		if self.request.get("modify_editor"):
+			editor = DBEditors.all().filter("email = ", self.request.get("old_email")).get()
+			if editor is not None:
+				if not email_address:
+					editor.delete()
+				else:
+					# modify editor
+					editor.comment= self.request.get("comment")
+					editor.email = email_address
+					editor.put()
+
+		# view editors
+		self.write("<h2>Editors</h2>")
+		self.write("<p>clear email field to delete")
+		for editor in DBEditors.all().order("email"):
+			d = dict(comment=editor.comment, email=editor.email)
+			self.write("""
+			<form action="/admin" method="post">
+			<input type="hidden" name="modify_editor" value="1">
+			<input type="hidden" name="old_email" value="%(email)s">
+			email: <input type="text" name="email" value="%(email)s">
+			comment: <input type="text" name="comment" value="%(comment)s">
+			<input type="submit" value="Save" />
+			</form>
+			""" % d)
+		self.write("""
+			<form action="/admin" method="post">
+			<input type="hidden" name="add_editor" value="1">
+			email: <input type="text" name="email" value="">
+			comment: <input type="text" name="comment" value="">
+			<input type="submit" value="Add" />
+			</form>
+			</p>
+		""")
+
 		# memcache management
 		self.write("<h2>memcache</h2>")
 		if self.request.get("clear_memcache"):
@@ -670,13 +724,13 @@ class AdminPage(Page):
 			self.write("<p><strong>flushed memcache</strong></p>")
 
 		self.write("""
-<p>
-%s
-<form action="/admin" method="post">
-<input type="hidden" name="clear_memcache" value="1">
-<input type="submit" value="Flush" />
-</form>
-</p>
+			<p>
+			%s
+			<form action="/admin" method="post">
+			<input type="hidden" name="clear_memcache" value="1">
+			<input type="submit" value="Flush" />
+			</form>
+			</p>
 		""" % memcache.get_stats())
 
 		key = "next_package_fetch_index"
