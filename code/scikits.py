@@ -47,17 +47,21 @@ class Page(webapp.RequestHandler):
 		show_latest_changes = 1
 		newest_packages_html = ""
 		if show_latest_changes:
-			newest_packages_html = []
-
+			# create html lines
+			newest_packages_html_lines = []
 			for package in Package.packages().values():
 				short_name = package.info()["short_name"]
-				package_news_items, _checked_urls = package.release_files(return_checked_urls=True)
+				news_items, _checked_urls = package.release_files(return_checked_urls=True)
 				checked_urls.extend(_checked_urls)
-				if package_news_items:
-					actions = ", ".join(name for name, _url, t in package_news_items)
-					newest_packages_html.append('<a href="/%(short_name)s" title="%(actions)s">%(short_name)s</a><br />\n' % locals())
+				if news_items:
+					actions = ", ".join(name for name, _url, t in news_items)
+					last_update_time = max(t for name, _url, t in news_items)
+					last_update_time_string = last_update_time.strftime("%d %b %Y")
+					#~ t = t.strftime("%d %b" if t.year == datetime.datetime.now().year else "%d %b %Y")
+					html = '<a href="/%(short_name)s" title="%(actions)s">%(short_name)s</a> <span style="font-size: 10px; color:gray;">%(last_update_time_string)s</span><br />\n' % locals()
+					newest_packages_html_lines.append((last_update_time, html))
 
-			newest_packages_html = "\n".join(sorted(newest_packages_html)[:5])
+			newest_packages_html = "\n".join(html for last_update_time, html in sorted(newest_packages_html_lines, reverse=True))
 			if newest_packages_html:
 				#~ feed_icon = '<a href="/rss.xml" style="font: bold 0.75em sans-serif; color: #fff; background: #f60; padding: 0.2em 0.35em; float: left;">RSS</a>'
 				feed_icon = '<a href="/rss.xml" style="font: 0.75em sans-serif; text-decoration: underline">(RSS)</a>'
