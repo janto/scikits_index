@@ -90,6 +90,10 @@ $(document).ready( function(){
 
 %(google_analytics)s
 
+<script type="text/javascript">
+jQuery.get("/worker?name=%(name)s");
+</script>
+
 </body>
 </html>
 

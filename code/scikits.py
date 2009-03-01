@@ -43,6 +43,7 @@ class Page(webapp.RequestHandler):
 		template_values["search_box_html"] = SearchPage.search_box()
 
 		# latest changes
+		t = time.time()
 		checked_urls = [] # the urls checked for updates
 		show_latest_changes = 1
 		newest_packages_html = ""
@@ -67,17 +68,19 @@ class Page(webapp.RequestHandler):
 				feed_icon = '<a href="/rss.xml" style="font: 0.75em sans-serif; text-decoration: underline">(RSS)</a>'
 				newest_packages_html = '<h3>Latest Releases %s</h3>\n%s' % (feed_icon, newest_packages_html)
 			template_values["newest_packages_html"] = newest_packages_html
+		self.write("<!-- checked changes in %0.2f sec -->" % (time.time() - t))
 
-		# force a fetch of one of the http listings
-		key = "next_listing_url_index"
-		n = memcache.get(key)
-		if n is None:
-			n = 0
-		memcache.set(key, (n+1) % len(checked_urls)) # set the next url to be fetched
-		url = checked_urls[n]
-		self.logger.info("forcing fetch of url: %s" % url)
-		template_values["newest_packages_html"] += "<!-- forced fetch of url : %s -->\n" % url
-		get_url(url, force_fetch=True, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
+		#~ # force a fetch of one of the http listings
+		#~ t = time.time()
+		#~ key = "next_listing_url_index"
+		#~ n = memcache.get(key)
+		#~ if n is None:
+			#~ n = 0
+		#~ memcache.set(key, (n+1) % len(checked_urls)) # set the next url to be fetched
+		#~ url = checked_urls[n]
+		#~ self.logger.info("forcing fetch of url: %s" % url)
+		#~ get_url(url, force_fetch=True, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
+		#~ template_values["newest_packages_html"] += "<!-- forced fetch of url : %s in %0.2f seconds -->\n" % (url, time.time() - t)
 
 		# admin sidebar
 		template_values["admin_sidebar_html"] = ""
@@ -110,8 +113,10 @@ class Page(webapp.RequestHandler):
 
 		self.write(get_template("header") % template_values)
 
-	def print_footer(self):
+	def print_footer(self, title=None):
 		template_values = {}
+		template_values["name"] = title or self.name
+
 		# google analytics
 		# http://code.google.com/apis/analytics/docs/gaTrackingOverview.html
 		if ON_DEV_SERVER:
@@ -140,6 +145,31 @@ class Page(webapp.RequestHandler):
 
 	def print_menu(self):
 		pass
+
+class WorkerPage(Page):
+	name = "worker"
+
+	def get(self):
+		checked_urls = []
+		for package in Package.packages().values():
+			news_items, _checked_urls = package.release_files(return_checked_urls=True)
+			checked_urls.extend(_checked_urls)
+
+		# force a fetch of one of the http listings
+		t = time.time()
+		key = "next_listing_url_index"
+		n = memcache.get(key)
+		if n is None:
+			n = 0
+		memcache.set(key, (n+1) % len(checked_urls)) # set the next url to be fetched
+		url = checked_urls[n]
+		report = "forcing fetch of url: %s (n=%d)" % (url, n)
+		self.logger.info(report)
+		self.write("<li>"+report)
+		get_url(url, force_fetch=True, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
+		report = "<li>fetched url in %0.2f seconds" % (time.time() - t)
+		self.logger.info(report)
+		self.write(report)
 
 class MainPage(Page):
 
@@ -219,7 +249,7 @@ class PackageInfoPage(Page):
 
 		self.write(package.to_html())
 
-		self.print_footer()
+		self.print_footer(title=package.name)
 
 def make_link(url):
 	return '<a href="%s">%s</a>' % (url, url)
@@ -805,6 +835,7 @@ class RSSFeedPage(Page):
 
 application = webapp.WSGIApplication([
 	('/', MainPage),
+	('/worker', WorkerPage),
 
 	('/scikits', PackagesPage),
 	('/(scikits[.].+)', PackageInfoPage),
