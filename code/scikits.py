@@ -45,7 +45,7 @@ class Page(webapp.RequestHandler):
 		# latest changes
 		t = time.time()
 		checked_urls = [] # the urls checked for updates
-		show_latest_changes = 1
+		show_latest_changes = 0
 		newest_packages_html = ""
 		if show_latest_changes:
 			# create html lines
@@ -67,7 +67,7 @@ class Page(webapp.RequestHandler):
 				#~ feed_icon = '<a href="/rss.xml" style="font: bold 0.75em sans-serif; color: #fff; background: #f60; padding: 0.2em 0.35em; float: left;">RSS</a>'
 				feed_icon = '<a href="/rss.xml" style="font: 0.75em sans-serif; text-decoration: underline">(RSS)</a>'
 				newest_packages_html = '<h3>Latest Releases %s</h3>\n%s' % (feed_icon, newest_packages_html)
-			template_values["newest_packages_html"] = newest_packages_html
+		template_values["newest_packages_html"] = newest_packages_html
 		self.write("<!-- checked changes in %0.2f sec -->" % (time.time() - t))
 
 		#~ # force a fetch of one of the http listings
