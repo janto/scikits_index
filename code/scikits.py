@@ -316,7 +316,6 @@ class Package(object):
 			if from_repo:
 				for repo_base_url in [
 						"http://svn.scipy.org/svn/scikits/trunk",
-						"http://svn.scipy.org/svn/scikits/trunk/learn/scikits/learn/machine/",
 						]:
 					logger.info("loading packages from repo %s" % repo_base_url)
 					for repo_url in fetch_dir_links(repo_base_url):

@@ -51,6 +51,7 @@ http://schedulerservice.appspot.com/
 proxy
 -------
 GAE has issues with some proxy setups. Pretty much all of them IMNSHO. You can hack it by following these instructions:
+   http://code.google.com/p/googleappengine/issues/detail?id=126
    http://code.google.com/p/googleappengine/issues/detail?id=544
 
 
