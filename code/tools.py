@@ -14,6 +14,8 @@ from google.appengine.api import users, urlfetch, memcache, mail
 from google.appengine.ext import webapp, db
 from google.appengine.api import users
 
+from google.appengine.ext.webapp import template as templating
+
 import xmlrpclib
 
 import PyRSS2Gen
@@ -93,7 +95,8 @@ def get_url(url, force_fetch=False, cache_duration=None):
 		else:
 			assert Cache.set(key=url, value=response, duration=cache_duration), url
 	else:
-		logger.debug("cache hit for %s" % url)
+		#~ logger.debug("cache hit for %s" % url)
+		pass
 
 	return response
 

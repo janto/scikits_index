@@ -43,6 +43,7 @@ class Page(webapp.RequestHandler):
 		template_values["search_box_html"] = SearchPage.search_box()
 
 		# latest changes
+		#XXX codeblock waaaay too complex
 		t = time.time()
 		checked_urls = [] # the urls checked for updates
 		show_latest_changes = 0
@@ -70,18 +71,6 @@ class Page(webapp.RequestHandler):
 		template_values["newest_packages_html"] = newest_packages_html
 		self.write("<!-- checked changes in %0.2f sec -->" % (time.time() - t))
 
-		#~ # force a fetch of one of the http listings
-		#~ t = time.time()
-		#~ key = "next_listing_url_index"
-		#~ n = memcache.get(key)
-		#~ if n is None:
-			#~ n = 0
-		#~ memcache.set(key, (n+1) % len(checked_urls)) # set the next url to be fetched
-		#~ url = checked_urls[n]
-		#~ self.logger.info("forcing fetch of url: %s" % url)
-		#~ get_url(url, force_fetch=True, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
-		#~ template_values["newest_packages_html"] += "<!-- forced fetch of url : %s in %0.2f seconds -->\n" % (url, time.time() - t)
-
 		# admin sidebar
 		template_values["admin_sidebar_html"] = ""
 		if users.is_current_user_admin():
@@ -97,7 +86,7 @@ class Page(webapp.RequestHandler):
 
 		# editor sidebar
 		template_values["editor_sidebar_html"] = ""
-		if current_user_is_editor():
+		if is_current_user_editor():
 
 			html = ['<h3><a href="/edit">Edit</a></h3>']
 			html.append('<ul>')
@@ -111,7 +100,7 @@ class Page(webapp.RequestHandler):
 
 			template_values["editor_sidebar_html"] = "\n".join(html)
 
-		self.write(get_template("header") % template_values)
+		self.write(render_template("header", template_values))
 
 	def print_footer(self, title=None):
 		template_values = {}
@@ -140,8 +129,8 @@ class Page(webapp.RequestHandler):
 		else:
 			template_values["login_logout_html"] = '<a href="%s">Sign in</a>' % users.create_login_url(url_requested)
 
-		template_values["load_time"] = time.time() - self.init_time
-		self.write(get_template("footer") % template_values)
+		template_values["load_time"] = "%0.3f" % (time.time() - self.init_time)
+		self.write(render_template("footer", template_values))
 
 	def print_menu(self):
 		pass
@@ -163,7 +152,7 @@ class WorkerPage(Page):
 			n = 0
 		memcache.set(key, (n+1) % len(checked_urls)) # set the next url to be fetched
 		url = checked_urls[n]
-		report = "forcing fetch of url: %s (n=%d)" % (url, n)
+		report = "forcing fetch of url: %s (n=%d/%d)" % (url, n, len(checked_urls))
 		self.logger.info(report)
 		self.write("<li>"+report)
 		get_url(url, force_fetch=True, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
@@ -178,7 +167,7 @@ class MainPage(Page):
 	def get(self):
 		self.print_header()
 		self.print_menu()
-		self.write(get_template(self.name) % locals())
+		self.write(render_template(self.name, locals()))
 		self.print_footer()
 
 class ContributePage(Page):
@@ -188,7 +177,7 @@ class ContributePage(Page):
 	def get(self):
 		self.print_header()
 		self.print_menu()
-		self.write(get_template(self.name) % locals())
+		self.write(render_template(self.name, locals()))
 		self.print_footer()
 
 class PackagesPage(Page):
@@ -274,12 +263,13 @@ def table_of_packages(packages):
 	return "\n".join(result)
 
 class Package(object):
-	def __init__(self, name, repo_url):
+	def __init__(self, name, repo_url, info_source=""):
 		"""
 		init should cache minimal information. actual information extraction should be done on page requests. with memcaching where needed.
 		"""
 		self.name = name
 		self.repo_url = repo_url
+		self.info_source = info_source
 
 	def release_files(self, return_checked_urls=False):
 		logger.debug(self.name)
@@ -291,7 +281,7 @@ class Package(object):
 
 		package_news_items = []
 		checked_urls = []
-		for dist in ["2.5", "2.6", "3.0", "any", "source"]: # check various distributions
+		for dist in ["2.5", "2.6", "2.7", "3.0", "any", "source"]: # check various distributions
 			url = "http://pypi.python.org/packages/%(dist)s/%(first_char)s/%(package_name)s/" % locals()
 			checked_urls.append(url) # remember for forcing fetch
 			items = fetch_links_with_dates(url, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
@@ -312,6 +302,18 @@ class Package(object):
 		if expired or packages is None:
 			packages = {}
 
+			from_pypi_search = 1
+			if from_pypi_search:
+				logger.info("loading packages from PyPI")
+				server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
+				results = server.search(dict(name="scikits"))
+				for package_name in set(result["name"] for result in results): # unique names, pypi contains duplicate names
+
+					#~ package_name_short = package_name.split(".", 1)[0] if package_name.startswith("scikits.") else package_name
+					repo_url = "" #XXX where can we get this?
+					package = Package(name=package_name, repo_url=repo_url, info_source="PyPI")
+					packages[package.name] = package
+
 			from_repo = 1
 			if from_repo:
 				for repo_base_url in [
@@ -320,8 +322,6 @@ class Package(object):
 					logger.info("loading packages from repo %s" % repo_base_url)
 					for repo_url in fetch_dir_links(repo_base_url):
 						package_name = "scikits.%s" % os.path.split(repo_url)[1]
-						if package_name in packages:
-							continue
 
 						# check if really a package
 						#~ url = os.path.join(repo_url, "setup.py")
@@ -329,24 +329,8 @@ class Package(object):
 						#~ if result.status_code != 200: # setup.py was not found
 							#~ continue
 
-						package = Package(name=package_name, repo_url=repo_url)
+						package = Package(name=package_name, repo_url=repo_url, info_source="svn.scipy.org")
 						packages[package.name] = package
-
-			from_pypi_search = 1
-			if from_pypi_search:
-				logger.info("loading packages from PyPI")
-				server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
-				results = server.search(dict(name="scikits"))
-				for package_name in set(result["name"] for result in results): # unique names, pypi contains duplicate names
-
-					#XXX remove this once no longer scanning repo for package name
-					if package_name in packages:
-						continue
-
-					#~ package_name_short = package_name.split(".", 1)[0] if package_name.startswith("scikits.") else package_name
-					repo_url = "" #XXX where can we get this?
-					package = Package(name=package_name, repo_url=repo_url)
-					packages[package.name] = package
 
 			assert Cache.set(key="packages", value=packages, duration=PACKAGE_LISTING_CACHE_DURATION), package
 
@@ -398,11 +382,14 @@ class Package(object):
 	def info(self, force_fetch=False):
 		d = dict(
 			name=self.name,
+			pypi_name="",
 			shortdesc="",
 			description="",
 			homepage="",
 			revision="",
 			people="",
+			info_source=self.info_source,
+			download_link="",
 			)
 		doap_result = get_url(
 			"http://pypi.python.org/pypi?:action=doap&name=%s" % self.name,
@@ -441,13 +428,10 @@ class Package(object):
 				d[name] = value
 
 			d["people"] = ", ".join(d["people"])
+			d["pypi_name"] = d["name"]
 
 			download_page = d.get("download-page", "") or ("http://pypi.python.org/pypi/%(name)s" % d)
 			d["download_link"] = make_link(download_page)
-
-		else:
-
-			d["download_link"] = "<code>svn checkout %s</code>" % make_link(self.repo_url)
 
 		d["short_name"] = d["name"].split(".")[-1]
 
@@ -469,7 +453,7 @@ class Package(object):
 		revision = d.get("revision")
 		revision = ("version " + revision) if revision else ""
 
-		return get_template("package_info") % dictadd(self.__dict__, d, locals())
+		return render_template("package_info", dictadd(self.__dict__, d, locals()))
 
 class SearchPage(Page):
 	name="search"
@@ -534,6 +518,9 @@ def get_template(name):
 	except AttributeError:
 		raise NoSuchTemplateException(name)
 
+def render_template(template_name, d):
+	return templating.Template(get_template(template_name)).render(templating.Context(d))
+
 class DBPageTemplate(db.Model):
 	name = db.StringProperty(required=True)
 	text = db.TextProperty()
@@ -557,7 +544,9 @@ class DBEditors(db.Model):
 	email = db.StringProperty(required=True)
 	comment = db.StringProperty()
 
-def current_user_is_editor():
+def is_current_user_editor():
+	if users.is_current_user_admin():
+		return True
 	user = users.get_current_user()
 	if user is None:
 		return False
@@ -591,7 +580,7 @@ class EditPage(Page):
 			self.write('<a href="%s">sign in</a>' % users.create_login_url(url_requested))
 			self.print_footer()
 			return
-		if not current_user_is_editor():
+		if not is_current_user_editor():
 			self.write('only site editors allowed here.\n')
 			self.write('<a href="%s">sign out</a>.' % users.create_logout_url(url_requested))
 			self.print_footer()
@@ -600,6 +589,7 @@ class EditPage(Page):
 		# backup and stats
 
 		self.write("<h1>Page Templates</h1>")
+		self.write("<p>Django style templates</p>")
 		self.write("<p>")
 		if self.request.get("email_backup") == "yes":
 			t = datetime.datetime.now()
@@ -783,7 +773,7 @@ class AboutPage(Page):
 	def get(self):
 		self.print_header()
 		self.print_menu()
-		self.write(get_template("about") % locals())
+		self.write(render_template("about", locals()))
 		self.print_footer()
 
 class DebugPage(Page):
