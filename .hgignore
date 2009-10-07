@@ -1,0 +1,3 @@
+glob:google_appengine/*
+glob:*.pyc
+glob:code/index.yaml
