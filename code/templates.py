@@ -88,7 +88,7 @@ footer_template = """
 <div class="clearer"></div>
 
 <div class="footer">
-See the <a href="http://code.google.com/p/scikits-index/source/checkout">source</a>.
+See the <a href="http://bitbucket.org/janto/scikits_index/">source</a>.
 Created page in {{ load_time }} seconds. {{login_logout_html}}
 <br />
 Designed by <a href="http://janto.blogspot.com/">Janto Dreijer</a>.
