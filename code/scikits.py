@@ -383,13 +383,16 @@ class Package(object):
 		d = dict(
 			name=self.name,
 			pypi_name="",
+			info_source=self.info_source,
+
 			shortdesc="",
 			description="",
+
 			homepage="",
+			download_url="",
+
 			revision="",
 			people="",
-			info_source=self.info_source,
-			download_link="",
 			)
 		doap_result = get_url(
 			"http://pypi.python.org/pypi?:action=doap&name=%s" % self.name,
@@ -430,10 +433,37 @@ class Package(object):
 			d["people"] = ", ".join(d["people"])
 			d["pypi_name"] = d["name"]
 
-			download_page = d.get("download-page", "") or ("http://pypi.python.org/pypi/%(name)s" % d)
-			d["download_link"] = make_link(download_page)
+			d["download_url"] = d.get("download-page", "") or ("http://pypi.python.org/pypi/%(name)s" % d)
 
 		d["short_name"] = d["name"].split(".")[-1]
+
+		# determine repository type and url
+
+		urls = [
+			self.repo_url,
+			d["download_url"],
+			d["homepage"],
+		]
+		repo_command = "svn checkout"
+		for url in urls:
+
+			if "svn" in url:
+				repo_command = "svn checkout"
+				self.repo_url = url
+				break
+			if "launchpad" in url:
+				repo_command = "bzr branch"
+				self.repo_url = url
+				break
+			if "bitbucket" in url or "hg" in url:
+				repo_command = "hg clone"
+				self.repo_url = url
+				break
+			if "git" in self.repo_url:
+				repo_command = "git clone"
+				self.repo_url = url
+				break
+		d["repo_command"] = repo_command
 
 		return d
 

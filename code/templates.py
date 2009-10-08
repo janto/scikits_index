@@ -201,8 +201,9 @@ package_info_template = """
 </p>
 
 <p>
-{% if download_link %}
-<img src="/static/images/download_32.png" width="16" border="0" /> Download:  {{ download_link }} <br />
+{% if download_url %}
+<img src="/static/images/download_32.png" width="16" border="0" />
+Download:  <a href="{{ download_url }}">{{ download_url }}</a> <br />
 {% endif %}
 {% if homepage %}
 Homepage: <a href="{{ homepage }}">{{ homepage }}</a> <br />
@@ -251,7 +252,7 @@ and ensure that your <code>PYTHONPATH</code> is up to date, e.g.:
 <h4>Source code</h4>
 <p>
 You can get the latest sources from the repository using
-<pre>svn checkout <a href="{{ repo_url }}">{{ repo_url }}</a></pre>
+<pre>{{ repo_command }} <a href="{{ repo_url }}">{{ repo_url }}</a></pre>
 </p>
 {% endif %}
 
