@@ -1,0 +1,5 @@
+cron:
+- description: worker thread
+  url: /worker?name=cronjob
+  schedule: every 30 minutes
+
