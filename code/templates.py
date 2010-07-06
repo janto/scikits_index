@@ -163,7 +163,7 @@ about_template = """
 SciKits (short for SciPy Toolkits), are add-on packages for <a href="http://www.scipy.org">SciPy</a>, hosted and developed separately from the main SciPy distribution.  All SciKits are available under the 'scikits' namespace and are licensed under <a href="http://www.opensource.org">OSI-approved licenses</a>.
 </p>
 <p>
-Packages are packages as toolkits (instead of in the main, monolithic SciPy distribution) when:
+Packages are packaged as toolkits (instead of in the main, monolithic SciPy distribution) when:
 <ol>
 <li>The package is deemed too specialized to live in SciPy itself or
 <li>The package has a GPL (or similar) license which is incompatible with SciPy's BSD license or
@@ -180,17 +180,24 @@ contribute_template = """
 <h3>Add your own package</h3>
 
 <p>
-<a href="http://projects.scipy.org/scikits">SciKits developer resources</a>
+Please refer to the <a href="http://projects.scipy.org/scikits">SciKits developer site</a>.
+</p>
+
+<p>
+Note that scikits do not have to be hosted on the SciPy servers.  Any package named "scikits.xyz" on the Python Packaging Index will be included on this website automatically.
 </p>
 
 <p>
 <!-- Register at PyPI or add to SVN repository -->
 </p>
 
+<!--
 <h3>Join a project</h3>
 <p>
 Join a mailing list.
 </p>
+
+-->
 """
 
 package_info_template = """
