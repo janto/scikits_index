@@ -165,6 +165,15 @@ class MainPage(Page):
 	name = "main"
 
 	def get(self):
+		if memcache.get("turn_off_website"):
+			self.write("""
+			<html><body>
+			We are experiencing some technical difficulties.
+			<br />In the meantime have a look at
+			<a href="http://pypi.python.org/pypi?:action=search&term=scikits&submit=search">PyPI's scikits listing</a>
+			</body></html>
+			""")
+			return
 		self.print_header()
 		self.print_menu()
 		self.write(render_template(self.name, locals()))
@@ -793,6 +802,20 @@ class AdminPage(Page):
 		key = "next_listing_url_index"
 		self.write("<h3>%s</h3>" % key)
 		self.write(memcache.get(key))
+
+		self.write("<h2>dangerous settings</h2>")
+		if self.request.get("turn_off_website"):
+			memcache.set("turn_off_website", (self.request.get("turn_off_website") == "True"))
+		self.write("<p><b>Warning</b>: setting this to true will disable access to the main page. You can only change the setting back to False from here (the admin page) or by clearing the memcache.</p>")
+		self.write("turn_off_website = %s" % memcache.get("turn_off_website"))
+		self.write("""
+			<p>
+			<form action="/admin" method="post">
+			<input type="hidden" name="turn_off_website" value="%s">
+			<input type="submit" value="Toggle" />
+			</form>
+			</p>
+			""" % (not memcache.get("turn_off_website")))
 
 		self.print_footer()
 
