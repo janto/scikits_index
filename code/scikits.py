@@ -488,7 +488,7 @@ class Package(object):
 		#~ escaped_description = parts["fragment"]
 
 		try:
-			escaped_description = rst2html(d["description"])
+			escaped_description = rst2html(d["description"].replace(r"\n", "\n"))
 		except docutils.utils.SystemMessage, e:
 			escaped_description = ("<!-- DOCUTILS WARNING! %s -->\n" % str(e)) + htmlquote(d["description"]).replace(r"\n", "<br />\n")
 
