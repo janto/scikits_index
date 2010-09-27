@@ -487,7 +487,10 @@ class Package(object):
 		#~ logger.debug(parts)
 		#~ escaped_description = parts["fragment"]
 
-		escaped_description = htmlquote(d["description"]).replace(r"\n", "<br />\n")
+		try:
+			escaped_description = rst2html(d["description"])
+		except docutils.utils.SystemMessage, e:
+			escaped_description = htmlquote(d["description"]).replace(r"\n", "<br />\n") + "\n<!-- DOCUTILS WARNING! %s -->" % str(e)
 
 		revision = d.get("revision")
 		revision = ("version " + revision) if revision else ""
