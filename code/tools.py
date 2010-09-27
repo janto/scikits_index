@@ -8,6 +8,7 @@ from BeautifulSoup import BeautifulSoup
 import wsgiref.handlers
 
 import re
+import os
 import os.path
 
 from google.appengine.api import users, urlfetch, memcache, mail
@@ -58,6 +59,39 @@ class Sink(object):
 def rdfToPython(s, base=None):
 	sink = Sink()
 	return rdfxml.parseRDF(s, base=None, sink=sink).result
+
+from docutils.core import publish_parts
+import docutils.utils
+def rst2html(s):
+	"""
+	from http://brizzled.clapper.org/id/77/
+	"""
+	settings = {
+		'config' : None,
+		'halt_level':2,
+
+		# following security precausions probably not necessary as GAE already messes with python's file() capability
+		'file_insertion_enabled':'no',
+		'raw_enabled':'no',
+	}
+
+	# Necessary, because otherwise docutils attempts to read a config file
+	# via the codecs module, which doesn't work with AppEngine.
+	os.environ['DOCUTILSCONFIG'] = ""
+	parts = publish_parts(source=s,
+		writer_name='html4css1',
+		settings_overrides=settings)
+	return parts['fragment']
+
+#~ s="""
+	#~ This SciKit
+	#~ (toolkit for `SciPy <http://www.scipy.org>`_) provides Python interfaces to a subset of the functions in the CUDA, CUDART, CUBLAS, and CUFFT libraries distributed as part of `NVIDIA's CUDA Programming Toolkit <http://www.nvidia.com/cuda>`_, as well as interfaces to select functions in the free-of-charge `CULA Toolkit <http://www.culatools.com>`_. In contrast to most existing Python wrappers for these libraries (many of which only provide a low-level interface to the actual library functions), this package uses `PyCUDA <http://mathema.tician.de/software/pycuda/>`_ to provide high-level functions comparable to those in the `NumPy <http://numpy.scipy.org>`_ package.
+	#~ """
+#~ try:
+	#~ print rst2html(s)
+#~ except docutils.utils.SystemMessage, e:
+	#~ print htmlquote(s).replace(r"\n", "<br />\n") + "\n<!-- DOCUTILS WARNING! %s -->" % str(e)
+#~ 1/0
 
 class Cache(object):
 
