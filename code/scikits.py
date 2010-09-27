@@ -490,7 +490,7 @@ class Package(object):
 		try:
 			escaped_description = rst2html(d["description"])
 		except docutils.utils.SystemMessage, e:
-			escaped_description = htmlquote(d["description"]).replace(r"\n", "<br />\n") + "\n<!-- DOCUTILS WARNING! %s -->" % str(e)
+			escaped_description = ("<!-- DOCUTILS WARNING! %s -->\n" % str(e)) + htmlquote(d["description"]).replace(r"\n", "<br />\n")
 
 		revision = d.get("revision")
 		revision = ("version " + revision) if revision else ""
