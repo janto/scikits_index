@@ -315,7 +315,7 @@ class Package(object):
 			if from_pypi_search:
 				logger.info("loading packages from PyPI")
 				server = xmlrpclib.ServerProxy('http://pypi.python.org/pypi', transport=GoogleXMLRPCTransport())
-				results = server.search(dict(name="scikits"))
+				results = server.search(dict(name="scikit"))
 				for package_name in set(result["name"] for result in results): # unique names, pypi contains duplicate names
 
 					#~ package_name_short = package_name.split(".", 1)[0] if package_name.startswith("scikits.") else package_name
