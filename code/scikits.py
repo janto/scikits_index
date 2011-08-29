@@ -170,7 +170,7 @@ class MainPage(Page):
 			<html><body>
 			We are experiencing some technical difficulties.
 			<br />In the meantime have a look at
-			<a href="http://pypi.python.org/pypi?:action=search&term=scikits&submit=search">PyPI's scikits listing</a>
+			<a href="http://pypi.python.org/pypi?:action=search&term=scikit&submit=search">PyPI's scikit listing</a>
 			</body></html>
 			""")
 			return
@@ -235,8 +235,9 @@ class PackageInfoPage(Page):
 		# done before printing header to build title
 		package = Package.packages().get(package_name)
 		if package is None:
-			package_name = "scikits.%s" % package_name
-			package = Package.packages().get(package_name)
+			package = Package.packages().get("scikits.%s" % package_name)
+		if package is None:
+			package = Package.packages().get("scikit.%s" % package_name)
 		if package is None:
 			self.error(404)
 			self.write("404 not found")
@@ -487,10 +488,15 @@ class Package(object):
 		#~ logger.debug(parts)
 		#~ escaped_description = parts["fragment"]
 
-		try:
-			escaped_description = rst2html(d["description"].replace(r"\n", "\n"))
-		except docutils.utils.SystemMessage, e:
-			escaped_description = ("<!-- DOCUTILS WARNING! %s -->\n" % str(e)) + htmlquote(d["description"]).replace(r"\n", "<br />\n")
+		convert_rst = 1
+
+		if convert_rst:
+			try:
+				escaped_description = rst2html(d["description"].replace(r"\n", "\n"))
+			except docutils.utils.SystemMessage, e:
+				escaped_description = ("<!-- DOCUTILS WARNING! %s -->\n" % str(e)) + htmlquote(d["description"]).replace(r"\n", "<br />\n")
+		else:
+			escaped_description = htmlquote(d["description"]).replace(r"\n", "<br />\n")
 
 		revision = d.get("revision")
 		revision = ("version " + revision) if revision else ""
