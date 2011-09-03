@@ -144,21 +144,28 @@ class WorkerPage(Page):
 			news_items, _checked_urls = package.release_files(return_checked_urls=True)
 			checked_urls.extend(_checked_urls)
 
-		# force a fetch of one of the http listings
-		t = time.time()
-		key = "next_listing_url_index"
-		n = memcache.get(key)
-		if n is None:
-			n = 0
-		memcache.set(key, (n+1) % len(checked_urls)) # set the next url to be fetched
-		url = checked_urls[n]
-		report = "forcing fetch of url: %s (n=%d/%d)" % (url, n, len(checked_urls))
-		self.logger.info(report)
-		self.write("<li>"+report)
-		get_url(url, force_fetch=True, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
-		report = "<li>fetched url in %0.2f seconds" % (time.time() - t)
-		self.logger.info(report)
-		self.write(report)
+		if random.random() < 0.3:
+
+			# force a fetch of one of the http listings
+			t = time.time()
+			key = "next_listing_url_index"
+			n = memcache.get(key)
+			if n is None:
+				n = 0
+			memcache.set(key, (n+1) % len(checked_urls)) # set the next url to be fetched
+			url = checked_urls[n]
+			report = "forcing fetch of url: %s (n=%d/%d)" % (url, n, len(checked_urls))
+			self.logger.info(report)
+			self.write("<li>%s</li>"%report)
+			get_url(url, force_fetch=True, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
+			report = "<li>fetched url in %0.2f seconds</li>" % (time.time() - t)
+			self.logger.info(report)
+			self.write(report)
+
+		else:
+			report = "not fetching http listing"
+			self.logger.info(report)
+			self.write(report)
 
 class MainPage(Page):
 
