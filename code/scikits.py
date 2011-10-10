@@ -860,7 +860,7 @@ class DebugPage(Page):
 
 class RobotsPage(Page):
 	def get(self):
-		#XXX are new lines ignored?
+		#XXX are first and last new lines ignored?
 		self.write("""
 User-agent: *
 Disallow: /static/
@@ -868,6 +868,11 @@ Disallow: /static/
 
 class RSSFeedPage(Page):
 	def get(self):
+
+		cache_key = "generated_rss_feed"
+		result, expired = Cache.get(cache_key)
+		if not expired:
+			return result
 
 		items = []
 		for package in Package.packages().values():
@@ -889,7 +894,10 @@ class RSSFeedPage(Page):
 			lastBuildDate = datetime.datetime.now(),
 			items = items)
 
-		self.write(rss.to_xml("utf-8"))
+		result = rss.to_xml("utf-8")
+		self.write(result)
+
+		assert Cache.set(key=cache_key, value=result, duration=PACKAGE_LISTING_CACHE_DURATION), cache_key
 
 application = webapp.WSGIApplication([
 	('/', MainPage),

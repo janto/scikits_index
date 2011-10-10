@@ -108,7 +108,8 @@ The following page request is vital to the working of the site.
 If it's not called then (see Issue#2)
 -->
 <script type="text/javascript">
-jQuery.get("/worker?name={{ name }}");
+// jQuery.get("/worker?name={{ name }}");
+// disabled. cronjob functionality should now compensate
 </script>
 
 </body>
