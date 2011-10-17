@@ -298,7 +298,7 @@ class Package(object):
 
 		package_news_items = []
 		checked_urls = []
-		for dist in ["2.5", "2.6", "2.7", "3.0", "any", "source"]: # check various distributions
+		for dist in ["2.5", "2.6", "2.7", "3.0", "any", "source"]: # check various distributions XXX hardcoding versions = yucky
 			url = "http://pypi.python.org/packages/%(dist)s/%(first_char)s/%(package_name)s/" % locals()
 			checked_urls.append(url) # remember for forcing fetch
 			items = fetch_links_with_dates(url, cache_duration=PACKAGE_NEWS_CACHE_DURATION)
@@ -871,8 +871,11 @@ class RSSFeedPage(Page):
 
 		cache_key = "generated_rss_feed"
 		result, expired = Cache.get(cache_key)
+		self.logger.debug(expired)
+		self.logger.debug(result)
 		if not expired:
-			return result
+			self.write(result)
+			return
 
 		items = []
 		for package in Package.packages().values():
