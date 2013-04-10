@@ -135,7 +135,7 @@ def get_url(url, force_fetch=False, cache_duration=None):
 def fetch_dir_links(url, cache_duration=None):
 	result = get_url(url, cache_duration=cache_duration)
 	if result.status_code != 200:
-		return
+		return []
 
 	items = re.findall('<a href="(.+?)/">.+?</a>', result.content)
 	return [os.path.join(url, item) for item in items if not item.startswith("http://") and not item.startswith("..")]
