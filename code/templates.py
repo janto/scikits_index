@@ -181,7 +181,7 @@ contribute_template = """
 <h3>Add your own package</h3>
 
 <p>
-Please refer to the <a href="http://scipy.org/scikits.html">information on the Scipy.org site</a>.
+Please refer to the <a href="http://scipy.org/scikits.html">Scipy.org site</a>.
 </p>
 
 <p>
